@@ -287,6 +287,7 @@ model Settings {
   middayJobTime               String   @default("11:30")
   afternoonJobTime            String   @default("14:00")
   eveningJobTime              String   @default("18:30")
+  sundayJobTime               String   @default("08:00")
   globalWeeklyConnectionLimit Int      @default(150)
   globalDailyConnectionLimit  Int      @default(21)
   globalDailyMessageLimit     Int      @default(25)

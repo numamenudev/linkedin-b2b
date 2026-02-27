@@ -18,6 +18,7 @@ interface Settings {
   middayJobTime: string;
   afternoonJobTime: string;
   eveningJobTime: string;
+  sundayJobTime: string;
   globalWeeklyConnectionLimit: number;
   globalDailyConnectionLimit: number;
   globalDailyMessageLimit: number;
@@ -428,6 +429,7 @@ function SystemTab({
     middayJobTime:    settings.middayJobTime,
     afternoonJobTime: settings.afternoonJobTime,
     eveningJobTime:   settings.eveningJobTime,
+    sundayJobTime:    settings.sundayJobTime,
   });
 
   const timezones = [
@@ -439,6 +441,7 @@ function SystemTab({
     { key: 'middayJobTime',    label: 'Job mezzogiorno' },
     { key: 'afternoonJobTime', label: 'Job pomeriggio' },
     { key: 'eveningJobTime',   label: 'Job sera' },
+    { key: 'sundayJobTime',    label: 'Job domenicale (Network Analysis)' },
   ];
 
   return (
@@ -624,6 +627,7 @@ const DEFAULT_SETTINGS: Settings = {
   middayJobTime: '11:30',
   afternoonJobTime: '14:00',
   eveningJobTime: '18:30',
+  sundayJobTime: '08:00',
   globalWeeklyConnectionLimit: 150,
   globalDailyConnectionLimit: 21,
   globalDailyMessageLimit: 25,

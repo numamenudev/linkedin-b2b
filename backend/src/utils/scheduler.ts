@@ -225,6 +225,59 @@ export function stopAll(): void {
 }
 
 // ---------------------------------------------------------------------------
+// scheduleSundayJob — Sunday network analysis with DB-persisted time
+// ---------------------------------------------------------------------------
+
+/**
+ * Schedule the Sunday network analysis job using the time stored in the
+ * Settings table (sundayJobTime).  Fires only on Sundays, with ±15min
+ * randomization like the daily jobs.
+ */
+async function scheduleSundayJob(
+  handler: () => Promise<void>,
+  lockTtl = 7_200,
+): Promise<void> {
+  let baseTimeStr = '08:00';
+
+  try {
+    const { getDb } = await import('../db/prisma.client');
+    const prisma = getDb();
+    const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } });
+    if (settings && typeof settings.sundayJobTime === 'string') {
+      baseTimeStr = settings.sundayJobTime;
+    }
+  } catch (err) {
+    logger.warn('Scheduler: could not read sundayJobTime from DB, using default', {
+      default: baseTimeStr,
+      error: (err as Error).message,
+    });
+  }
+
+  const [hourStr, minuteStr] = baseTimeStr.split(':');
+  const baseHour = parseInt(hourStr, 10);
+  const baseMinute = parseInt(minuteStr, 10);
+
+  // Fire 15 minutes before base time, on Sundays only (day-of-week 0)
+  const earliestMinute = Math.max(0, baseMinute - 15);
+  const cronExpr = `${earliestMinute} ${baseHour} * * 0`;
+
+  scheduleJob(
+    'sunday',
+    cronExpr,
+    async () => {
+      // Compute a random offset [0, 30] minutes to land in [base-15, base+15]
+      const randomOffsetMs = Math.floor(Math.random() * 30 * 60 * 1_000);
+      logger.info('Scheduler: randomized delay before sunday job', {
+        delayMs: randomOffsetMs,
+      });
+      await sleep(randomOffsetMs);
+      await handler();
+    },
+    lockTtl,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // initScheduler — wires up all system jobs
 // ---------------------------------------------------------------------------
 
@@ -239,6 +292,7 @@ export async function initScheduler(): Promise<void> {
     { runMiddayJob: middayJob },
     { runAfternoonJob: afternoonJob },
     { runEveningJob: eveningJob },
+    { runSundayJob: sundayJob },
     { acceptancePollingJob },
     { resetDailyCounters, resetWeeklyCounters },
   ] = await Promise.all([
@@ -246,6 +300,7 @@ export async function initScheduler(): Promise<void> {
     import('../automation/jobs/midday.job'),
     import('../automation/jobs/afternoon.job'),
     import('../automation/jobs/evening.job'),
+    import('../automation/jobs/sunday.job'),
     import('../automation/acceptance-monitor'),
     import('./rate-limiter'),
   ]);
@@ -255,6 +310,9 @@ export async function initScheduler(): Promise<void> {
   await scheduleDailyJob('midday', middayJob, 2 * 3600);
   await scheduleDailyJob('afternoon', afternoonJob, 5 * 3600);  // DC-08: TTL 5h
   await scheduleDailyJob('evening', eveningJob, 2 * 3600);
+
+  // Sunday network analysis job — times read from DB, ±15min randomized
+  await scheduleSundayJob(sundayJob);
 
   // DC-16: Acceptance polling fallback every 4 hours
   scheduleJob(

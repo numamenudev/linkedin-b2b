@@ -26,6 +26,7 @@ const updateSettingsSchema = z.object({
   middayJobTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   afternoonJobTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   eveningJobTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  sundayJobTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   globalWeeklyConnectionLimit: z.number().int().min(1).max(150).optional(),
   globalDailyConnectionLimit: z.number().int().min(1).max(25).optional(),
   globalDailyMessageLimit: z.number().int().min(1).max(50).optional(),

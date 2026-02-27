@@ -8,7 +8,7 @@ import { ArrowLeft, Play, Pause, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api';
 import { useAgent } from '@/hooks/useAgents';
 import { useProspects } from '@/hooks/useProspects';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Extended types
@@ -283,59 +283,131 @@ function SearchesTab({ agentId }: { agentId: string }) {
 // ---------------------------------------------------------------------------
 // Tab: Config
 // ---------------------------------------------------------------------------
-function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit }: {
+
+interface TargetConfigForm {
+  targetTitles: string;
+  targetIndustries: string;
+  targetLocations: string;
+  excludeTitles: string;
+  keywords: string;
+}
+
+function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit, agentTargetConfig }: {
   agentId: string;
   agentName: string;
   agentDescription?: string;
   agentDailyLimit?: number;
+  agentTargetConfig?: Record<string, unknown>;
 }) {
   const queryClient = useQueryClient();
+
+  const tc = agentTargetConfig ?? {};
+  const toStr = (val: unknown) => Array.isArray(val) ? (val as string[]).join(', ') : '';
+
   const [form, setForm] = useState({
     name: agentName,
     description: agentDescription ?? '',
     dailyLimit: agentDailyLimit ?? 9,
   });
 
+  const [targeting, setTargeting] = useState<TargetConfigForm>({
+    targetTitles: toStr(tc.targetTitles),
+    targetIndustries: toStr(tc.targetIndustries),
+    targetLocations: toStr(tc.targetLocations),
+    excludeTitles: toStr(tc.excludeTitles),
+    keywords: toStr(tc.keywords),
+  });
+
+  const fromStr = (s: string) => s.split(',').map(v => v.trim()).filter(Boolean);
+
   const updateMutation = useMutation({
-    mutationFn: (data: typeof form) => api.put(`/agents/${agentId}`, data),
+    mutationFn: (data: Record<string, unknown>) => api.put(`/agents/${agentId}`, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
+  const handleSave = () => {
+    updateMutation.mutate({
+      name: form.name,
+      description: form.description,
+      dailyConnectionRequests: form.dailyLimit,
+      targetConfig: {
+        targetTitles: fromStr(targeting.targetTitles),
+        targetIndustries: fromStr(targeting.targetIndustries),
+        targetLocations: fromStr(targeting.targetLocations),
+        excludeTitles: fromStr(targeting.excludeTitles),
+        keywords: fromStr(targeting.keywords),
+      },
+    });
+  };
+
+  const targetFields: { key: keyof TargetConfigForm; label: string; placeholder: string }[] = [
+    { key: 'targetTitles',     label: 'Titoli target',      placeholder: 'CEO, CTO, Direttore Marketing' },
+    { key: 'keywords',         label: 'Keywords ricerca',   placeholder: 'ristorante, trattoria, chef' },
+    { key: 'targetLocations',  label: 'Localita\' target',  placeholder: 'Milano, Roma, Torino' },
+    { key: 'targetIndustries', label: 'Settori target',     placeholder: 'Food & Beverages, Hospitality' },
+    { key: 'excludeTitles',    label: 'Titoli da escludere',placeholder: 'Studente, Stagista' },
+  ];
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4 max-w-lg">
-      <h3 className="text-sm font-semibold text-gray-900">Configurazione agente</h3>
-      <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Nome</label>
-        <input
-          value={form.name}
-          onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+    <div className="space-y-6 max-w-lg">
+      {/* General config */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-900">Configurazione generale</h3>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Nome</label>
+          <input
+            value={form.name}
+            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Descrizione</label>
+          <textarea
+            value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            rows={3}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Limite giornaliero richieste connessione
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={21}
+            value={form.dailyLimit}
+            onChange={e => setForm(p => ({ ...p, dailyLimit: Number(e.target.value) }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
       </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Descrizione</label>
-        <textarea
-          value={form.description}
-          onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-          rows={3}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+
+      {/* Target config */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Configurazione targeting</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Definisci chi questo agente deve cercare. Separa i valori con virgola.
+          </p>
+        </div>
+        {targetFields.map(f => (
+          <div key={f.key}>
+            <label className="block text-xs font-medium text-gray-700 mb-1">{f.label}</label>
+            <input
+              value={targeting[f.key]}
+              onChange={e => setTargeting(p => ({ ...p, [f.key]: e.target.value }))}
+              placeholder={f.placeholder}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        ))}
       </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
-          Limite giornaliero richieste
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={21}
-          value={form.dailyLimit}
-          onChange={e => setForm(p => ({ ...p, dailyLimit: Number(e.target.value) }))}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-      </div>
+
       <button
-        onClick={() => updateMutation.mutate(form)}
+        onClick={handleSave}
         disabled={updateMutation.isPending}
         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors disabled:opacity-50"
       >
@@ -422,7 +494,7 @@ function LogsTab({ agentId }: { agentId: string }) {
         )}
         {logs.map(log => (
           <div key={log.id} className="flex gap-3">
-            <span className="text-gray-500 flex-shrink-0">{formatDate(log.createdAt)}</span>
+            <span className="text-gray-500 flex-shrink-0">{formatDateTime(log.createdAt)}</span>
             <span className={`${levelColors[log.level] ?? 'text-gray-300'} flex-shrink-0 uppercase w-12`}>
               [{log.level}]
             </span>
@@ -591,7 +663,13 @@ export default function AgentDetail() {
         {activeTab === 'prospects' && <ProspectsTab agentId={id!} />}
         {activeTab === 'searches'  && <SearchesTab agentId={id!} />}
         {activeTab === 'config'    && (
-          <ConfigTab agentId={id!} agentName={agent.name} agentDescription={(agent as any).description} agentDailyLimit={agent.dailyLimit} />
+          <ConfigTab
+            agentId={id!}
+            agentName={agent.name}
+            agentDescription={(agent as any).description}
+            agentDailyLimit={agent.dailyLimit}
+            agentTargetConfig={(agent as any).targetConfig}
+          />
         )}
         {activeTab === 'logs'      && <LogsTab agentId={id!} />}
       </div>

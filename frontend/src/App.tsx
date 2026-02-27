@@ -5,6 +5,7 @@ import { Layout } from '@/components/layout/Layout';
 
 const LoginPage = React.lazy(() => import('@/pages/Login'));
 const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
+const AgentsListPage = React.lazy(() => import('@/pages/Agents/AgentsList'));
 const AgentDetailPage = React.lazy(() => import('@/pages/Agents/AgentDetail'));
 const AgentCreatePage = React.lazy(() => import('@/pages/Agents/AgentCreate'));
 const ProspectsListPage = React.lazy(() => import('@/pages/Prospects/ProspectsList'));
@@ -54,7 +55,11 @@ export default function App() {
         />
         <Route
           path="/agents"
-          element={<Navigate to="/dashboard" replace />}
+          element={
+            <RequireAuth>
+              <AgentsListPage />
+            </RequireAuth>
+          }
         />
         <Route
           path="/agents/new"

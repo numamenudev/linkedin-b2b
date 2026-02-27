@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
+  Bot,
   Users,
   BarChart2,
   ScrollText,
@@ -34,6 +35,11 @@ export function Sidebar({ responseCount = 0, isOpen = true, onClose }: SidebarPr
       label: 'Dashboard',
       icon: <LayoutDashboard size={18} />,
       badge: responseCount > 0 ? responseCount : undefined,
+    },
+    {
+      to: '/agents',
+      label: 'Agenti',
+      icon: <Bot size={18} />,
     },
     {
       to: '/identities',

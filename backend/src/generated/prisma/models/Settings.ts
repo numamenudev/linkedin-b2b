@@ -48,6 +48,7 @@ export type SettingsMinAggregateOutputType = {
   middayJobTime: string | null
   afternoonJobTime: string | null
   eveningJobTime: string | null
+  sundayJobTime: string | null
   globalWeeklyConnectionLimit: number | null
   globalDailyConnectionLimit: number | null
   globalDailyMessageLimit: number | null
@@ -64,6 +65,7 @@ export type SettingsMaxAggregateOutputType = {
   middayJobTime: string | null
   afternoonJobTime: string | null
   eveningJobTime: string | null
+  sundayJobTime: string | null
   globalWeeklyConnectionLimit: number | null
   globalDailyConnectionLimit: number | null
   globalDailyMessageLimit: number | null
@@ -80,6 +82,7 @@ export type SettingsCountAggregateOutputType = {
   middayJobTime: number
   afternoonJobTime: number
   eveningJobTime: number
+  sundayJobTime: number
   globalWeeklyConnectionLimit: number
   globalDailyConnectionLimit: number
   globalDailyMessageLimit: number
@@ -110,6 +113,7 @@ export type SettingsMinAggregateInputType = {
   middayJobTime?: true
   afternoonJobTime?: true
   eveningJobTime?: true
+  sundayJobTime?: true
   globalWeeklyConnectionLimit?: true
   globalDailyConnectionLimit?: true
   globalDailyMessageLimit?: true
@@ -126,6 +130,7 @@ export type SettingsMaxAggregateInputType = {
   middayJobTime?: true
   afternoonJobTime?: true
   eveningJobTime?: true
+  sundayJobTime?: true
   globalWeeklyConnectionLimit?: true
   globalDailyConnectionLimit?: true
   globalDailyMessageLimit?: true
@@ -142,6 +147,7 @@ export type SettingsCountAggregateInputType = {
   middayJobTime?: true
   afternoonJobTime?: true
   eveningJobTime?: true
+  sundayJobTime?: true
   globalWeeklyConnectionLimit?: true
   globalDailyConnectionLimit?: true
   globalDailyMessageLimit?: true
@@ -245,6 +251,7 @@ export type SettingsGroupByOutputType = {
   middayJobTime: string
   afternoonJobTime: string
   eveningJobTime: string
+  sundayJobTime: string
   globalWeeklyConnectionLimit: number
   globalDailyConnectionLimit: number
   globalDailyMessageLimit: number
@@ -284,6 +291,7 @@ export type SettingsWhereInput = {
   middayJobTime?: Prisma.StringFilter<"Settings"> | string
   afternoonJobTime?: Prisma.StringFilter<"Settings"> | string
   eveningJobTime?: Prisma.StringFilter<"Settings"> | string
+  sundayJobTime?: Prisma.StringFilter<"Settings"> | string
   globalWeeklyConnectionLimit?: Prisma.IntFilter<"Settings"> | number
   globalDailyConnectionLimit?: Prisma.IntFilter<"Settings"> | number
   globalDailyMessageLimit?: Prisma.IntFilter<"Settings"> | number
@@ -300,6 +308,7 @@ export type SettingsOrderByWithRelationInput = {
   middayJobTime?: Prisma.SortOrder
   afternoonJobTime?: Prisma.SortOrder
   eveningJobTime?: Prisma.SortOrder
+  sundayJobTime?: Prisma.SortOrder
   globalWeeklyConnectionLimit?: Prisma.SortOrder
   globalDailyConnectionLimit?: Prisma.SortOrder
   globalDailyMessageLimit?: Prisma.SortOrder
@@ -319,6 +328,7 @@ export type SettingsWhereUniqueInput = Prisma.AtLeast<{
   middayJobTime?: Prisma.StringFilter<"Settings"> | string
   afternoonJobTime?: Prisma.StringFilter<"Settings"> | string
   eveningJobTime?: Prisma.StringFilter<"Settings"> | string
+  sundayJobTime?: Prisma.StringFilter<"Settings"> | string
   globalWeeklyConnectionLimit?: Prisma.IntFilter<"Settings"> | number
   globalDailyConnectionLimit?: Prisma.IntFilter<"Settings"> | number
   globalDailyMessageLimit?: Prisma.IntFilter<"Settings"> | number
@@ -335,6 +345,7 @@ export type SettingsOrderByWithAggregationInput = {
   middayJobTime?: Prisma.SortOrder
   afternoonJobTime?: Prisma.SortOrder
   eveningJobTime?: Prisma.SortOrder
+  sundayJobTime?: Prisma.SortOrder
   globalWeeklyConnectionLimit?: Prisma.SortOrder
   globalDailyConnectionLimit?: Prisma.SortOrder
   globalDailyMessageLimit?: Prisma.SortOrder
@@ -359,6 +370,7 @@ export type SettingsScalarWhereWithAggregatesInput = {
   middayJobTime?: Prisma.StringWithAggregatesFilter<"Settings"> | string
   afternoonJobTime?: Prisma.StringWithAggregatesFilter<"Settings"> | string
   eveningJobTime?: Prisma.StringWithAggregatesFilter<"Settings"> | string
+  sundayJobTime?: Prisma.StringWithAggregatesFilter<"Settings"> | string
   globalWeeklyConnectionLimit?: Prisma.IntWithAggregatesFilter<"Settings"> | number
   globalDailyConnectionLimit?: Prisma.IntWithAggregatesFilter<"Settings"> | number
   globalDailyMessageLimit?: Prisma.IntWithAggregatesFilter<"Settings"> | number
@@ -375,6 +387,7 @@ export type SettingsCreateInput = {
   middayJobTime?: string
   afternoonJobTime?: string
   eveningJobTime?: string
+  sundayJobTime?: string
   globalWeeklyConnectionLimit?: number
   globalDailyConnectionLimit?: number
   globalDailyMessageLimit?: number
@@ -391,6 +404,7 @@ export type SettingsUncheckedCreateInput = {
   middayJobTime?: string
   afternoonJobTime?: string
   eveningJobTime?: string
+  sundayJobTime?: string
   globalWeeklyConnectionLimit?: number
   globalDailyConnectionLimit?: number
   globalDailyMessageLimit?: number
@@ -407,6 +421,7 @@ export type SettingsUpdateInput = {
   middayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   afternoonJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   eveningJobTime?: Prisma.StringFieldUpdateOperationsInput | string
+  sundayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   globalWeeklyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyMessageLimit?: Prisma.IntFieldUpdateOperationsInput | number
@@ -423,6 +438,7 @@ export type SettingsUncheckedUpdateInput = {
   middayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   afternoonJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   eveningJobTime?: Prisma.StringFieldUpdateOperationsInput | string
+  sundayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   globalWeeklyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyMessageLimit?: Prisma.IntFieldUpdateOperationsInput | number
@@ -439,6 +455,7 @@ export type SettingsCreateManyInput = {
   middayJobTime?: string
   afternoonJobTime?: string
   eveningJobTime?: string
+  sundayJobTime?: string
   globalWeeklyConnectionLimit?: number
   globalDailyConnectionLimit?: number
   globalDailyMessageLimit?: number
@@ -455,6 +472,7 @@ export type SettingsUpdateManyMutationInput = {
   middayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   afternoonJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   eveningJobTime?: Prisma.StringFieldUpdateOperationsInput | string
+  sundayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   globalWeeklyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyMessageLimit?: Prisma.IntFieldUpdateOperationsInput | number
@@ -471,6 +489,7 @@ export type SettingsUncheckedUpdateManyInput = {
   middayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   afternoonJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   eveningJobTime?: Prisma.StringFieldUpdateOperationsInput | string
+  sundayJobTime?: Prisma.StringFieldUpdateOperationsInput | string
   globalWeeklyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyConnectionLimit?: Prisma.IntFieldUpdateOperationsInput | number
   globalDailyMessageLimit?: Prisma.IntFieldUpdateOperationsInput | number
@@ -487,6 +506,7 @@ export type SettingsCountOrderByAggregateInput = {
   middayJobTime?: Prisma.SortOrder
   afternoonJobTime?: Prisma.SortOrder
   eveningJobTime?: Prisma.SortOrder
+  sundayJobTime?: Prisma.SortOrder
   globalWeeklyConnectionLimit?: Prisma.SortOrder
   globalDailyConnectionLimit?: Prisma.SortOrder
   globalDailyMessageLimit?: Prisma.SortOrder
@@ -509,6 +529,7 @@ export type SettingsMaxOrderByAggregateInput = {
   middayJobTime?: Prisma.SortOrder
   afternoonJobTime?: Prisma.SortOrder
   eveningJobTime?: Prisma.SortOrder
+  sundayJobTime?: Prisma.SortOrder
   globalWeeklyConnectionLimit?: Prisma.SortOrder
   globalDailyConnectionLimit?: Prisma.SortOrder
   globalDailyMessageLimit?: Prisma.SortOrder
@@ -525,6 +546,7 @@ export type SettingsMinOrderByAggregateInput = {
   middayJobTime?: Prisma.SortOrder
   afternoonJobTime?: Prisma.SortOrder
   eveningJobTime?: Prisma.SortOrder
+  sundayJobTime?: Prisma.SortOrder
   globalWeeklyConnectionLimit?: Prisma.SortOrder
   globalDailyConnectionLimit?: Prisma.SortOrder
   globalDailyMessageLimit?: Prisma.SortOrder
@@ -549,6 +571,7 @@ export type SettingsSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   middayJobTime?: boolean
   afternoonJobTime?: boolean
   eveningJobTime?: boolean
+  sundayJobTime?: boolean
   globalWeeklyConnectionLimit?: boolean
   globalDailyConnectionLimit?: boolean
   globalDailyMessageLimit?: boolean
@@ -565,6 +588,7 @@ export type SettingsSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   middayJobTime?: boolean
   afternoonJobTime?: boolean
   eveningJobTime?: boolean
+  sundayJobTime?: boolean
   globalWeeklyConnectionLimit?: boolean
   globalDailyConnectionLimit?: boolean
   globalDailyMessageLimit?: boolean
@@ -581,6 +605,7 @@ export type SettingsSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   middayJobTime?: boolean
   afternoonJobTime?: boolean
   eveningJobTime?: boolean
+  sundayJobTime?: boolean
   globalWeeklyConnectionLimit?: boolean
   globalDailyConnectionLimit?: boolean
   globalDailyMessageLimit?: boolean
@@ -597,13 +622,14 @@ export type SettingsSelectScalar = {
   middayJobTime?: boolean
   afternoonJobTime?: boolean
   eveningJobTime?: boolean
+  sundayJobTime?: boolean
   globalWeeklyConnectionLimit?: boolean
   globalDailyConnectionLimit?: boolean
   globalDailyMessageLimit?: boolean
   updatedAt?: boolean
 }
 
-export type SettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reportEmail" | "reportEmailTime" | "linkedinMode" | "timezone" | "morningJobTime" | "middayJobTime" | "afternoonJobTime" | "eveningJobTime" | "globalWeeklyConnectionLimit" | "globalDailyConnectionLimit" | "globalDailyMessageLimit" | "updatedAt", ExtArgs["result"]["settings"]>
+export type SettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reportEmail" | "reportEmailTime" | "linkedinMode" | "timezone" | "morningJobTime" | "middayJobTime" | "afternoonJobTime" | "eveningJobTime" | "sundayJobTime" | "globalWeeklyConnectionLimit" | "globalDailyConnectionLimit" | "globalDailyMessageLimit" | "updatedAt", ExtArgs["result"]["settings"]>
 
 export type $SettingsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Settings"
@@ -618,6 +644,7 @@ export type $SettingsPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     middayJobTime: string
     afternoonJobTime: string
     eveningJobTime: string
+    sundayJobTime: string
     globalWeeklyConnectionLimit: number
     globalDailyConnectionLimit: number
     globalDailyMessageLimit: number
@@ -1054,6 +1081,7 @@ export interface SettingsFieldRefs {
   readonly middayJobTime: Prisma.FieldRef<"Settings", 'String'>
   readonly afternoonJobTime: Prisma.FieldRef<"Settings", 'String'>
   readonly eveningJobTime: Prisma.FieldRef<"Settings", 'String'>
+  readonly sundayJobTime: Prisma.FieldRef<"Settings", 'String'>
   readonly globalWeeklyConnectionLimit: Prisma.FieldRef<"Settings", 'Int'>
   readonly globalDailyConnectionLimit: Prisma.FieldRef<"Settings", 'Int'>
   readonly globalDailyMessageLimit: Prisma.FieldRef<"Settings", 'Int'>

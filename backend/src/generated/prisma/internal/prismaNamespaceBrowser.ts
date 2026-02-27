@@ -272,6 +272,7 @@ export const SettingsScalarFieldEnum = {
   middayJobTime: 'middayJobTime',
   afternoonJobTime: 'afternoonJobTime',
   eveningJobTime: 'eveningJobTime',
+  sundayJobTime: 'sundayJobTime',
   globalWeeklyConnectionLimit: 'globalWeeklyConnectionLimit',
   globalDailyConnectionLimit: 'globalDailyConnectionLimit',
   globalDailyMessageLimit: 'globalDailyMessageLimit',
