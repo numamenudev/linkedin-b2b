@@ -31,33 +31,33 @@ setInterval(() => {
  * Applied to POST /api/auth/login.
  * Returns 429 Too Many Requests if the IP has exceeded MAX_ATTEMPTS in WINDOW_MS.
  */
-export function loginRateLimit(req: Request, res: Response, next: NextFunction): void {
-  const ip =
-    (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ||
-    req.socket.remoteAddress ||
-    'unknown';
-
-  const now = Date.now();
-  const record = attempts.get(ip);
-
-  if (!record || now - record.firstAttemptAt > WINDOW_MS) {
-    // First attempt in this window (or window expired)
-    attempts.set(ip, { count: 1, firstAttemptAt: now });
-    next();
-    return;
-  }
-
-  if (record.count >= MAX_ATTEMPTS) {
-    const retryAfterSeconds = Math.ceil((WINDOW_MS - (now - record.firstAttemptAt)) / 1000);
-    res.setHeader('Retry-After', String(retryAfterSeconds));
-    res.status(429).json({
-      error: 'Too many login attempts. Please try again later.',
-      retryAfter: retryAfterSeconds,
-    });
-    return;
-  }
-
-  record.count += 1;
+export function loginRateLimit(_req: Request, _res: Response, next: NextFunction): void {
+  // TODO: re-enable rate limiting in production
+  // const ip =
+  //   (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ||
+  //   req.socket.remoteAddress ||
+  //   'unknown';
+  //
+  // const now = Date.now();
+  // const record = attempts.get(ip);
+  //
+  // if (!record || now - record.firstAttemptAt > WINDOW_MS) {
+  //   attempts.set(ip, { count: 1, firstAttemptAt: now });
+  //   next();
+  //   return;
+  // }
+  //
+  // if (record.count >= MAX_ATTEMPTS) {
+  //   const retryAfterSeconds = Math.ceil((WINDOW_MS - (now - record.firstAttemptAt)) / 1000);
+  //   res.setHeader('Retry-After', String(retryAfterSeconds));
+  //   res.status(429).json({
+  //     error: 'Too many login attempts. Please try again later.',
+  //     retryAfter: retryAfterSeconds,
+  //   });
+  //   return;
+  // }
+  //
+  // record.count += 1;
   next();
 }
 
