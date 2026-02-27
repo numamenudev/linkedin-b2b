@@ -128,7 +128,7 @@ function AgentCard({ agent }: { agent: AgentWithStats }) {
           )}
         </button>
         <button
-          onClick={() => navigate(`/agents/${agent.id}/edit`)}
+          onClick={() => navigate(`/agents/${agent.id}`, { state: { tab: 'config' } })}
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors font-medium"
         >
           <Pencil className="h-3.5 w-3.5" />

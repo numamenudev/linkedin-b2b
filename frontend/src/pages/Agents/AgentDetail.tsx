@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -416,8 +416,10 @@ function LogsTab({ agentId }: { agentId: string }) {
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const initialTab = (location.state as { tab?: TabId } | null)?.tab ?? 'overview';
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   const { data: agent, isLoading, isError } = useAgent(id ?? '');
 
