@@ -1,4 +1,4 @@
-# LinkedIn B2B Automation Platform
+# LinkedIn-b2b Automation Platform
 
 An automated LinkedIn outreach platform for B2B prospecting. It manages multiple LinkedIn
 identities ("agents"), discovers prospects via LinkedIn search, sends connection requests
