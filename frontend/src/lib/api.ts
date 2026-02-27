@@ -63,10 +63,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === 'object' && data !== null && 'message' in data
-        ? String((data as { message: string }).message)
-        : `HTTP ${response.status} ${response.statusText}`;
+    let message = `HTTP ${response.status} ${response.statusText}`;
+    if (typeof data === 'object' && data !== null) {
+      const obj = data as Record<string, unknown>;
+      if ('message' in obj) message = String(obj.message);
+      else if ('error' in obj) message = String(obj.error);
+    }
     throw createApiError(response.status, message, data);
   }
 

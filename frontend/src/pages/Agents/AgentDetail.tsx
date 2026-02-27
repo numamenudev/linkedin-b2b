@@ -504,6 +504,13 @@ export default function AgentDetail() {
         </div>
       </div>
 
+      {/* Toggle error */}
+      {toggleMutation.isError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          {toggleMutation.error?.message || "Errore nell'attivazione dell'agente."}
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-1 -mb-px">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm, FormProvider, useFormContext } from 'react-hook-form';
+import { useForm, FormProvider, useFormContext, Controller } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Check, Rocket } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -36,7 +36,6 @@ interface AgentWizardFormValues {
   connectionMessageTemplate: string;
   followUpTemplate: string;
   // Step 4
-  weeklyConnectionRequests: number;
   dailyLimit: number;
   priority: number;
 }
@@ -176,7 +175,7 @@ function Step1Identity() {
 // Step 2 – Target configuration
 // ---------------------------------------------------------------------------
 function Step2Target() {
-  const { register } = useFormContext<AgentWizardFormValues>();
+  const { register, control } = useFormContext<AgentWizardFormValues>();
 
   return (
     <div className="space-y-4">
@@ -224,22 +223,33 @@ function Step2Target() {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Score minimo</label>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          defaultValue={50}
-          {...register('minScore', { valueAsNumber: true })}
-          className="w-full accent-indigo-600"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>0</span>
-          <span>100</span>
-        </div>
-      </div>
+      <Controller
+        name="minScore"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Score minimo</label>
+              <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-800">
+                {field.value}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={field.value}
+              onChange={e => field.onChange(Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>0 — nessun filtro</span>
+              <span>100 — solo i migliori</span>
+            </div>
+          </div>
+        )}
+      />
     </div>
   );
 }
@@ -298,59 +308,52 @@ function Step3Messaging() {
 // Step 4 – Budget
 // ---------------------------------------------------------------------------
 function Step4Budget() {
-  const { register, watch } = useFormContext<AgentWizardFormValues>();
-  const daily = watch('dailyLimit') ?? 9;
-  const weekly = watch('weeklyConnectionRequests') ?? 60;
+  const { register, control } = useFormContext<AgentWizardFormValues>();
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Budget e priorità</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Configura i limiti (max 21/giorno, 150/settimana su LinkedIn Free).
+          Configura i limiti di invio per rispettare le policy di LinkedIn (max 21/giorno).
         </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Richieste connessione / giorno:{' '}
-          <span className="font-bold text-indigo-600">{daily}</span>
-        </label>
-        <input
-          type="range"
-          min={1}
-          max={21}
-          step={1}
-          {...register('dailyLimit', { valueAsNumber: true })}
-          className="w-full accent-indigo-600"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>1</span>
-          <span>21 (max)</span>
-        </div>
-      </div>
+      <Controller
+        name="dailyLimit"
+        control={control}
+        render={({ field }) => (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Richieste connessione / giorno
+              </label>
+              <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-800">
+                {field.value}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={21}
+              step={1}
+              value={field.value}
+              onChange={e => field.onChange(Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>1</span>
+              <span>21 (max)</span>
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              Equivale a circa {Math.min(field.value * 7, 150)} connessioni/settimana (limite LinkedIn Free: 150).
+            </p>
+          </div>
+        )}
+      />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Richieste connessione / settimana:{' '}
-          <span className="font-bold text-indigo-600">{weekly}</span>
-        </label>
-        <input
-          type="range"
-          min={1}
-          max={150}
-          step={5}
-          {...register('weeklyConnectionRequests', { valueAsNumber: true })}
-          className="w-full accent-indigo-600"
-        />
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>1</span>
-          <span>150 (max)</span>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Priorità (1 = alta)</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Priorità</label>
         <select
           {...register('priority', { valueAsNumber: true })}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -379,7 +382,7 @@ function Step5Review() {
     { label: 'Industry',             value: values.industry || '—' },
     { label: 'Score minimo',         value: values.minScore },
     { label: 'Connessioni / giorno', value: values.dailyLimit },
-    { label: 'Connessioni / sett.',  value: values.weeklyConnectionRequests },
+    { label: 'Connessioni / sett.',  value: Math.min(values.dailyLimit * 7, 150) },
     { label: 'Priorità',             value: values.priority },
   ];
 
@@ -440,7 +443,6 @@ export default function AgentCreate() {
       minScore: 50,
       connectionMessageTemplate: '',
       followUpTemplate: '',
-      weeklyConnectionRequests: 60,
       dailyLimit: 9,
       priority: 1,
     },
@@ -466,14 +468,23 @@ export default function AgentCreate() {
     createAgent.mutate(
       {
         name: data.name,
+        description: data.description || undefined,
         identityId: data.identityId,
-        targetDescription: [
-          data.jobTitles,
-          data.location,
-          data.industry,
-        ].filter(Boolean).join(' | '),
-        dailyLimit: data.dailyLimit,
-        messageTemplate: data.connectionMessageTemplate || undefined,
+        dailyConnectionRequests: data.dailyLimit,
+        weeklyConnectionRequests: Math.min(data.dailyLimit * 7, 150),
+        priority: data.priority,
+        targetConfig: {
+          targetTitles: data.jobTitles ? data.jobTitles.split(',').map(s => s.trim()).filter(Boolean) : [],
+          targetLocations: data.location ? data.location.split(',').map(s => s.trim()).filter(Boolean) : [],
+          targetIndustries: data.industry ? data.industry.split(',').map(s => s.trim()).filter(Boolean) : [],
+          excludeTitles: data.exclusions ? data.exclusions.split(',').map(s => s.trim()).filter(Boolean) : [],
+          keywords: [],
+          minConnectionCount: 0,
+        },
+        messagingConfig: data.connectionMessageTemplate ? {
+          coldIntroPrompt: data.connectionMessageTemplate,
+          coldFollowup1Prompt: data.followUpTemplate || '',
+        } : undefined,
       },
       {
         onSuccess: (created) => {
@@ -498,7 +509,7 @@ export default function AgentCreate() {
 
       {/* Form */}
       <FormProvider {...methods}>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={e => e.preventDefault()}>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 min-h-[360px]">
             {step === 1 && <Step1Identity />}
             {step === 2 && <Step2Target />}
@@ -508,8 +519,8 @@ export default function AgentCreate() {
           </div>
 
           {createAgent.isError && (
-            <div className="mt-2 text-sm text-red-600 bg-red-50 rounded-lg p-3">
-              Errore nella creazione dell'agente. Riprova.
+            <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+              {createAgent.error?.message || "Errore nella creazione dell'agente. Riprova."}
             </div>
           )}
 
@@ -535,7 +546,8 @@ export default function AgentCreate() {
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={onSubmit}
                 disabled={createAgent.isPending}
                 className="flex items-center gap-2 px-6 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
               >

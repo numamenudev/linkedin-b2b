@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { PlusCircle, Users, CheckCircle2, MessageSquare, Reply } from 'lucide-react';
+import { PlusCircle, Users, CheckCircle2, MessageSquare, Reply, Pause, Play, Pencil, Eye } from 'lucide-react';
 import { api } from '@/lib/api';
 import { buildQueryString } from '@/lib/utils';
-import { type Agent } from '@/hooks/useAgents';
-import { type Prospect } from '@/hooks/useProspects';
+import { useAgents, useToggleAgent, type Agent } from '@/hooks/useAgents';
+import { type Prospect, type PaginatedProspects } from '@/hooks/useProspects';
 
 // ---------------------------------------------------------------------------
 // KPI Card
@@ -29,19 +30,20 @@ function KpiCard({ label, value, icon, color }: KpiCardProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Agent Status Badge (inline, self-contained)
+// Agent Status Badge
 // ---------------------------------------------------------------------------
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
+  const styles: Record<string, string> = {
     active:   'bg-green-100 text-green-800',
     paused:   'bg-yellow-100 text-yellow-800',
-    archived: 'bg-gray-100 text-gray-600',
+    archived: 'bg-gray-100 text-gray-500',
     error:    'bg-red-100 text-red-700',
+    draft:    'bg-gray-100 text-gray-500',
   };
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        map[status] ?? 'bg-gray-100 text-gray-600'
+        styles[status] ?? 'bg-gray-100 text-gray-500'
       }`}
     >
       {status}
@@ -50,25 +52,22 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Mini Agent Card
+// Rich Agent Card (with toggle, edit, detail)
 // ---------------------------------------------------------------------------
-interface AgentStats {
-  acceptedConnections: number;
-  sentConnections: number;
-  repliedProspects: number;
-  totalProspects: number;
-  messagedProspects: number;
-  sentToday: number;
-}
-
 interface AgentWithStats extends Agent {
   description?: string;
-  stats?: AgentStats;
-  dailyConnectionRequests?: number;
+  stats?: {
+    acceptedConnections: number;
+    sentConnections: number;
+    repliedProspects: number;
+    totalProspects: number;
+  };
 }
 
 function AgentCard({ agent }: { agent: AgentWithStats }) {
   const navigate = useNavigate();
+  const toggleMutation = useToggleAgent();
+
   const acceptanceRate = agent.stats
     ? Math.round((agent.stats.acceptedConnections / Math.max(agent.stats.sentConnections, 1)) * 100)
     : 0;
@@ -77,41 +76,70 @@ function AgentCard({ agent }: { agent: AgentWithStats }) {
     : 0;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900 text-base">{agent.name}</h3>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="font-semibold text-gray-900">{agent.name}</h3>
+          {agent.description && (
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{agent.description}</p>
+          )}
+        </div>
         <StatusBadge status={agent.status} />
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-        <div>
-          <span className="font-medium text-gray-900">{agent.stats?.totalProspects ?? 0}</span>
-          <span className="ml-1">prospect</span>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-3 gap-3 text-center text-sm">
+        <div className="bg-gray-50 rounded-lg py-2">
+          <p className="font-bold text-gray-900">{agent.stats?.totalProspects ?? 0}</p>
+          <p className="text-xs text-gray-500">Prospect</p>
         </div>
-        <div>
-          <span className="font-medium text-gray-900">{acceptanceRate}%</span>
-          <span className="ml-1">accettazione</span>
+        <div className="bg-gray-50 rounded-lg py-2">
+          <p className="font-bold text-gray-900">{acceptanceRate}%</p>
+          <p className="text-xs text-gray-500">Accettazione</p>
         </div>
-        <div>
-          <span className="font-medium text-gray-900">{responseRate}%</span>
-          <span className="ml-1">risposta</span>
-        </div>
-        <div>
-          <span className="font-medium text-gray-900">{agent.stats?.sentToday ?? 0}</span>
-          <span className="ml-1">oggi</span>
+        <div className="bg-gray-50 rounded-lg py-2">
+          <p className="font-bold text-gray-900">{responseRate}%</p>
+          <p className="text-xs text-gray-500">Risposta</p>
         </div>
       </div>
-      <div className="flex gap-2 mt-1">
+
+      {/* Actions */}
+      <div className="flex gap-2 mt-auto">
         <button
-          onClick={() => navigate(`/agents/${agent.id}`)}
-          className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors font-medium"
+          onClick={() =>
+            toggleMutation.mutate({
+              id: agent.id,
+              action: agent.status === 'active' ? 'pause' : 'activate',
+            })
+          }
+          disabled={toggleMutation.isPending || (agent.status as string) === 'archived'}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+            agent.status === 'active'
+              ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+              : 'bg-green-50 text-green-700 hover:bg-green-100'
+          } disabled:opacity-50`}
+          title={agent.status === 'active' ? 'Metti in pausa' : 'Attiva'}
         >
-          Dettaglio
+          {agent.status === 'active' ? (
+            <><Pause className="h-3.5 w-3.5" />Pausa</>
+          ) : (
+            <><Play className="h-3.5 w-3.5" />Attiva</>
+          )}
         </button>
         <button
           onClick={() => navigate(`/agents/${agent.id}/edit`)}
-          className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors font-medium"
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors font-medium"
         >
+          <Pencil className="h-3.5 w-3.5" />
           Modifica
+        </button>
+        <button
+          onClick={() => navigate(`/agents/${agent.id}`)}
+          className="flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors font-medium"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Dettaglio
         </button>
       </div>
     </div>
@@ -121,12 +149,7 @@ function AgentCard({ agent }: { agent: AgentWithStats }) {
 // ---------------------------------------------------------------------------
 // Recent Responses row
 // ---------------------------------------------------------------------------
-interface ProspectWithAgent extends Prospect {
-  agentName?: string;
-  messages?: { content?: string; id: string }[];
-}
-
-function ResponseRow({ prospect }: { prospect: ProspectWithAgent }) {
+function ResponseRow({ prospect }: { prospect: Prospect }) {
   const navigate = useNavigate();
   const lastMsg = prospect.messages?.[0];
   return (
@@ -154,7 +177,7 @@ function ResponseRow({ prospect }: { prospect: ProspectWithAgent }) {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard Page
+// Dashboard Page (unified: KPI + Agents + Responses)
 // ---------------------------------------------------------------------------
 interface DashboardKpis {
   sentToday: number;
@@ -163,18 +186,13 @@ interface DashboardKpis {
   repliesToday: number;
 }
 
-interface PaginatedProspects {
-  data: ProspectWithAgent[];
-  total: number;
-}
+type StatusFilter = 'all' | 'active' | 'paused' | 'archived';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const { data: agents = [], isLoading: agentsLoading } = useQuery<AgentWithStats[]>({
-    queryKey: ['agents'],
-    queryFn: () => api.get<AgentWithStats[]>('/agents'),
-  });
+  const { data: agents = [], isLoading: agentsLoading } = useAgents();
 
   const { data: kpis } = useQuery<DashboardKpis>({
     queryKey: ['dashboard', 'kpis'],
@@ -187,7 +205,18 @@ export default function Dashboard() {
       api.get<PaginatedProspects>(`/prospects${buildQueryString({ status: 'responded', pageSize: 10 })}`),
   });
 
-  const recentResponses: ProspectWithAgent[] = responsesResult?.data ?? [];
+  const recentResponses: Prospect[] = responsesResult?.data ?? [];
+
+  const filtered: AgentWithStats[] = (statusFilter === 'all'
+    ? agents
+    : agents.filter(a => a.status === statusFilter)) as AgentWithStats[];
+
+  const filterButtons: { label: string; value: StatusFilter }[] = [
+    { label: 'Tutti',      value: 'all' },
+    { label: 'Attivi',     value: 'active' },
+    { label: 'In pausa',   value: 'paused' },
+    { label: 'Archiviati', value: 'archived' },
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -234,28 +263,57 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Agents Grid */}
+      {/* Agent section: filter + grid */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Agenti attivi</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Agenti <span className="text-sm font-normal text-gray-500">({agents.length})</span>
+          </h2>
+        </div>
+
+        {/* Status filters */}
+        <div className="flex gap-2 flex-wrap mb-4">
+          {filterButtons.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                statusFilter === f.value
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid */}
         {agentsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-gray-100 rounded-xl h-40 animate-pulse" />
+              <div key={i} className="bg-gray-100 rounded-xl h-48 animate-pulse" />
             ))}
           </div>
-        ) : agents.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-200">
-            <p className="text-gray-500 text-sm">Nessun agente configurato.</p>
-            <button
-              onClick={() => navigate('/agents/new')}
-              className="mt-3 text-indigo-600 text-sm hover:underline"
-            >
-              Crea il primo agente
-            </button>
+            <p className="text-gray-500 text-sm">
+              {statusFilter === 'all'
+                ? 'Nessun agente configurato.'
+                : `Nessun agente con status "${statusFilter}".`}
+            </p>
+            {statusFilter === 'all' && (
+              <button
+                onClick={() => navigate('/agents/new')}
+                className="mt-3 text-indigo-600 text-sm hover:underline"
+              >
+                Crea il primo agente
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agents.map(agent => (
+            {filtered.map(agent => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
           </div>
@@ -264,7 +322,7 @@ export default function Dashboard() {
 
       {/* Recent Responses */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Risposte ricevute</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Risposte recenti</h2>
         <p className="text-xs text-gray-500 mb-4">Prospect che hanno risposto ai tuoi messaggi</p>
         {recentResponses.length === 0 ? (
           <p className="text-sm text-gray-400 py-6 text-center">

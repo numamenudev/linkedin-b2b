@@ -56,9 +56,14 @@ export interface AgentStats {
 export interface CreateAgentPayload {
   name: string;
   identityId: string;
-  targetDescription?: string;
-  dailyLimit?: number;
-  messageTemplate?: string;
+  description?: string;
+  dailyConnectionRequests?: number;
+  weeklyConnectionRequests?: number;
+  dailyMessages?: number;
+  priority?: number;
+  linkedinMode?: 'free' | 'sales_navigator';
+  targetConfig?: Record<string, unknown>;
+  messagingConfig?: Record<string, unknown>;
 }
 
 export type UpdateAgentPayload = Partial<CreateAgentPayload>;

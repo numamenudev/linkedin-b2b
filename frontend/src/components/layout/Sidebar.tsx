@@ -2,12 +2,12 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Bot,
   Users,
   BarChart2,
   ScrollText,
   Settings,
   Linkedin,
+  Fingerprint,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -36,9 +36,9 @@ export function Sidebar({ responseCount = 0, isOpen = true, onClose }: SidebarPr
       badge: responseCount > 0 ? responseCount : undefined,
     },
     {
-      to: '/agents',
-      label: 'Agenti',
-      icon: <Bot size={18} />,
+      to: '/identities',
+      label: 'Identità',
+      icon: <Fingerprint size={18} />,
     },
     {
       to: '/prospects',

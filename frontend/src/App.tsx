@@ -5,12 +5,12 @@ import { Layout } from '@/components/layout/Layout';
 
 const LoginPage = React.lazy(() => import('@/pages/Login'));
 const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
-const AgentsListPage = React.lazy(() => import('@/pages/Agents/AgentsList'));
 const AgentDetailPage = React.lazy(() => import('@/pages/Agents/AgentDetail'));
 const AgentCreatePage = React.lazy(() => import('@/pages/Agents/AgentCreate'));
 const ProspectsListPage = React.lazy(() => import('@/pages/Prospects/ProspectsList'));
 const AnalyticsPage = React.lazy(() => import('@/pages/Analytics'));
 const LogsPage = React.lazy(() => import('@/pages/Logs'));
+const IdentitiesPage = React.lazy(() => import('@/pages/Identities'));
 const SettingsPage = React.lazy(() => import('@/pages/Settings'));
 
 /** Wrapper that redirects unauthenticated users to /login */
@@ -54,11 +54,7 @@ export default function App() {
         />
         <Route
           path="/agents"
-          element={
-            <RequireAuth>
-              <AgentsListPage />
-            </RequireAuth>
-          }
+          element={<Navigate to="/dashboard" replace />}
         />
         <Route
           path="/agents/new"
@@ -85,12 +81,10 @@ export default function App() {
           }
         />
         <Route
-          path="/identities/*"
+          path="/identities"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Identities — coming soon</h1>
-              </div>
+              <IdentitiesPage />
             </RequireAuth>
           }
         />
