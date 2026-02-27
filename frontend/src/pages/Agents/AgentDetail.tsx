@@ -283,16 +283,17 @@ function SearchesTab({ agentId }: { agentId: string }) {
 // ---------------------------------------------------------------------------
 // Tab: Config
 // ---------------------------------------------------------------------------
-function ConfigTab({ agentId, agentName, agentDescription }: {
+function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit }: {
   agentId: string;
   agentName: string;
   agentDescription?: string;
+  agentDailyLimit?: number;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: agentName,
     description: agentDescription ?? '',
-    dailyLimit: 9,
+    dailyLimit: agentDailyLimit ?? 9,
   });
 
   const updateMutation = useMutation({
@@ -428,6 +429,14 @@ export default function AgentDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.del(`/agents/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['agents'] });
+      navigate('/dashboard');
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -495,19 +504,36 @@ export default function AgentDetail() {
             )}
           </button>
           <button
-            onClick={() => navigate(`/agents/${id}/edit`)}
+            onClick={() => setActiveTab('config')}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <Pencil className="h-4 w-4" />
             Modifica
           </button>
+          <button
+            onClick={() => {
+              if (window.confirm(`Eliminare l'agente "${agent.name}"? Questa azione non è reversibile.`)) {
+                deleteMutation.mutate();
+              }
+            }}
+            disabled={deleteMutation.isPending}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            Elimina
+          </button>
         </div>
       </div>
 
-      {/* Toggle error */}
+      {/* Mutation errors */}
       {toggleMutation.isError && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
           {toggleMutation.error?.message || "Errore nell'attivazione dell'agente."}
+        </div>
+      )}
+      {deleteMutation.isError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          {deleteMutation.error?.message || "Errore nell'eliminazione dell'agente."}
         </div>
       )}
 
@@ -536,7 +562,7 @@ export default function AgentDetail() {
         {activeTab === 'prospects' && <ProspectsTab agentId={id!} />}
         {activeTab === 'searches'  && <SearchesTab agentId={id!} />}
         {activeTab === 'config'    && (
-          <ConfigTab agentId={id!} agentName={agent.name} />
+          <ConfigTab agentId={id!} agentName={agent.name} agentDescription={(agent as any).description} agentDailyLimit={agent.dailyLimit} />
         )}
         {activeTab === 'logs'      && <LogsTab agentId={id!} />}
       </div>
