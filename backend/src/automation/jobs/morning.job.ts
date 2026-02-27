@@ -24,7 +24,7 @@ import { analyzeBatch } from '../profile-analyzer';
 import { checkFollowupTimers } from '../followup-manager';
 import { telegramBot } from '../../integrations/telegram/telegram.bot';
 import db from '../../db/prisma.client';
-import type { Identity } from '@prisma/client';
+import type { Identity } from '../../generated/prisma/client.js';
 import type { MorningBriefingData } from '../../integrations/telegram/telegram.bot';
 
 // ---------------------------------------------------------------------------

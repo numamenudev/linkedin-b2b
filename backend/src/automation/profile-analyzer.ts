@@ -21,7 +21,7 @@ import {
 import { logger, logOperation } from '../utils/logger';
 import { sleep } from '../utils/helpers';
 import db from '../db/prisma.client';
-import type { Prospect, Identity } from '@prisma/client';
+import type { Prospect, Identity } from '../generated/prisma/client.js';
 import type { TargetConfig } from '../types/agent-config.types';
 
 // ---------------------------------------------------------------------------

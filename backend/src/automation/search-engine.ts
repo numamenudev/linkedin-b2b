@@ -160,7 +160,7 @@ export async function executeSearch(
  * @param agentId Agent ID
  * @returns       The SearchStructure record, or null if no enabled structures exist
  */
-export async function selectNextStructure(agentId: string): Promise<import('@prisma/client').SearchStructure | null> {
+export async function selectNextStructure(agentId: string): Promise<import('../generated/prisma/client.js').SearchStructure | null> {
   const structure = await db.searchStructure.findFirst({
     where: {
       agentId,

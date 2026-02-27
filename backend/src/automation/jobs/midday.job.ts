@@ -23,7 +23,7 @@ import { getActiveAgents } from '../../agents/orchestrator';
 import { selectNextStructure, executeSearch } from '../search-engine';
 import { filterProfiles, scoreProspect } from '../deduplication';
 import db from '../../db/prisma.client';
-import type { Agent } from '@prisma/client';
+import type { Agent } from '../../generated/prisma/client.js';
 import type { TargetConfig, LinkedInProfile } from '../../types/agent-config.types';
 
 // ---------------------------------------------------------------------------

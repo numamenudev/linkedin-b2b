@@ -13,7 +13,7 @@ import { tryIncrementLimit, getRemaining } from '../utils/rate-limiter';
 import { sleep } from '../utils/helpers';
 import { logger, logOperation } from '../utils/logger';
 import db from '../db/prisma.client';
-import type { Prospect } from '@prisma/client';
+import type { Prospect } from '../generated/prisma/client.js';
 
 // ---------------------------------------------------------------------------
 // Constants

@@ -22,7 +22,7 @@ import { sendBatchConnectionRequests } from '../connection-sender';
 import { processReadyForOutreach } from '../outreach-agent';
 import { processFollowups } from '../followup-manager';
 import db from '../../db/prisma.client';
-import type { Agent } from '@prisma/client';
+import type { Agent } from '../../generated/prisma/client.js';
 import type { BudgetAllocation } from '../../agents/budget-allocator';
 
 // ---------------------------------------------------------------------------

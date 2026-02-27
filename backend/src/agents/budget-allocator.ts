@@ -12,7 +12,7 @@
 
 import { logger } from '../utils/logger';
 import db from '../db/prisma.client';
-import type { Agent } from '@prisma/client';
+import type { Agent } from '../generated/prisma/client.js';
 
 // ---------------------------------------------------------------------------
 // Types

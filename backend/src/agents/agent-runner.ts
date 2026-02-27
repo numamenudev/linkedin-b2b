@@ -11,7 +11,7 @@
 
 import { logger, logOperation } from '../utils/logger';
 import db from '../db/prisma.client';
-import type { Agent, Identity } from '@prisma/client';
+import type { Agent, Identity } from '../generated/prisma/client.js';
 
 // ---------------------------------------------------------------------------
 // Types
