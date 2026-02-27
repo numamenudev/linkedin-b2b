@@ -318,8 +318,10 @@ agentsRoutes.post('/:id/run-now', async (req: Request, res: Response, next: Next
       return;
     }
 
-    // Placeholder: actual job execution will be wired up in the automation engine
-    res.json({ success: true, message: `Job '${parsed.data.job}' queued for agent ${req.params.id}` });
+    // Execute the agent cycle for the requested job type
+    const { runAgentCycle } = await import('../../agents/agent-runner');
+    const result = await runAgentCycle(req.params.id, parsed.data.job);
+    res.json(result);
   } catch (err) {
     next(err);
   }

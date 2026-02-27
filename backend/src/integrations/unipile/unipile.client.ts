@@ -22,6 +22,8 @@
  *
  * Circuit breaker state is in-memory (resets on process restart, which is acceptable
  * since restart implies Unipile may be reachable again).
+ *
+ * API Reference: https://developer.unipile.com/docs/getting-started
  */
 
 import { logger } from '../../utils/logger';
@@ -72,6 +74,13 @@ export interface UnipileProfile {
   }>;
   skills?: string[];
   rawData?: Record<string, unknown>;
+  // Downstream-compatible fields (populated by searchPeople mapping)
+  linkedinId: string;
+  fullName?: string;
+  linkedinUrl?: string;
+  companyName?: string;
+  publicIdentifier?: string;
+  networkDistance?: string;
 }
 
 export interface SearchResult {
@@ -128,6 +137,37 @@ export interface UnipileChat {
 }
 
 // ---------------------------------------------------------------------------
+// Raw Unipile search response item (as returned by the API)
+// ---------------------------------------------------------------------------
+
+interface UnipileSearchItem {
+  type: string;
+  id: string;                           // provider internal ID (ACoAAA...)
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  member_urn?: string;
+  public_identifier?: string;
+  profile_url?: string;
+  public_profile_url?: string;
+  profile_picture_url?: string;
+  profile_picture_url_large?: string;
+  network_distance?: string;
+  location?: string;
+  headline?: string;
+  industry?: string;
+  premium?: boolean;
+  verified?: boolean;
+  current_positions?: Array<{
+    company?: string;
+    role?: string;
+    tenure_at_company?: unknown;
+  }>;
+  pending_invitation?: boolean;
+  open_profile?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Helper: sleep
 // ---------------------------------------------------------------------------
 
@@ -142,6 +182,7 @@ function sleep(ms: number): Promise<void> {
 export class UnipileClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly accountId: string;
   private readonly timeoutMs = 30_000;
   private readonly maxRetries = 3;
   private readonly retryDelays = [1_000, 3_000, 9_000]; // exponential back-off
@@ -158,10 +199,12 @@ export class UnipileClient {
   constructor(
     baseUrl: string,
     apiKey: string,
+    accountId: string,
     cbConfig: Partial<CircuitBreakerConfig> = {},
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // strip trailing slash
     this.apiKey = apiKey;
+    this.accountId = accountId;
     this.cbConfig = { ...DEFAULT_CB_CONFIG, ...cbConfig };
   }
 
@@ -328,61 +371,152 @@ export class UnipileClient {
 
   // -------------------------------------------------------------------------
   // Public API methods
+  // Docs: https://developer.unipile.com/docs/linkedin-search
   // -------------------------------------------------------------------------
 
   /**
    * Search LinkedIn people by keyword(s).
+   * Endpoint: POST /api/v1/linkedin/search?account_id={accountId}
+   * Body: { api: "classic", category: "people", keyword: keywords }
    * Constraint C2: keyword-only search, ~10 results per query on LinkedIn Free.
    */
   async searchPeople(keywords: string, options: SearchOptions = {}): Promise<SearchResult> {
-    const params = new URLSearchParams({ keywords });
-    if (options.limit !== undefined) params.set('limit', String(options.limit));
-    if (options.offset !== undefined) params.set('offset', String(options.offset));
-    if (options.location) params.set('location', options.location);
-    if (options.industry) params.set('industry', options.industry);
+    const acct = encodeURIComponent(this.accountId);
 
-    const data = await this.request<{ items: UnipileProfile[]; total: number; next?: string }>(
-      'GET',
-      `/api/v1/linkedin/search/people?${params.toString()}`,
+    const body: Record<string, unknown> = {
+      api: 'classic',
+      category: 'people',
+      keyword: keywords,
+    };
+    if (options.limit !== undefined) body.limit = options.limit;
+
+    const data = await this.request<{
+      object: string;
+      items: UnipileSearchItem[];
+      paging?: { start: number; page_count: number; total_count: number };
+      cursor?: string | null;
+    }>(
+      'POST',
+      `/api/v1/linkedin/search?account_id=${acct}`,
+      body,
     );
 
+    const items = data.items ?? [];
+
+    // Map raw Unipile search items to UnipileProfile format
+    const profiles: UnipileProfile[] = items
+      .filter((item) => item.type === 'PEOPLE')
+      .map((item) => {
+        const nameParts = (item.name ?? '').split(' ');
+        const firstName = item.first_name ?? nameParts[0] ?? '';
+        const lastName = item.last_name ?? nameParts.slice(1).join(' ') ?? '';
+        const fullName = item.name ?? `${firstName} ${lastName}`.trim();
+
+        // Try to extract company from current_positions or headline
+        let companyName: string | undefined;
+        if (item.current_positions?.length) {
+          companyName = item.current_positions[0]?.company ?? undefined;
+        }
+        if (!companyName && item.headline) {
+          // Simple heuristic: "Role at Company" or "Role | Company"
+          const atMatch = item.headline.match(/\bat\b\s+(.+)/i);
+          const pipeMatch = item.headline.match(/\|\s*(.+)/);
+          companyName = atMatch?.[1]?.trim() ?? pipeMatch?.[1]?.trim() ?? undefined;
+        }
+
+        const linkedinUrl = item.profile_url
+          ?? item.public_profile_url
+          ?? (item.public_identifier ? `https://www.linkedin.com/in/${item.public_identifier}` : '');
+
+        return {
+          // Core UnipileProfile fields
+          id: item.id,
+          providerId: item.id,
+          firstName,
+          lastName,
+          headline: item.headline ?? undefined,
+          location: item.location ?? undefined,
+          industry: item.industry ?? undefined,
+          profilePictureUrl: item.profile_picture_url ?? undefined,
+          rawData: item as unknown as Record<string, unknown>,
+          // Downstream-compatible fields for filterProfiles / midday job
+          linkedinId: item.id,
+          fullName,
+          linkedinUrl,
+          companyName,
+          publicIdentifier: item.public_identifier ?? undefined,
+          networkDistance: item.network_distance ?? undefined,
+        };
+      });
+
     return {
-      profiles: data.items ?? [],
-      total: data.total ?? (data.items?.length ?? 0),
-      hasMore: Boolean(data.next),
+      profiles,
+      total: data.paging?.total_count ?? profiles.length,
+      hasMore: Boolean(data.cursor),
     };
   }
 
   /**
    * Fetch a full LinkedIn profile.
+   * Endpoint: GET /api/v1/users/{identifier}?account_id={accountId}&linkedin_sections=*
+   * Docs: https://developer.unipile.com/docs/retrieving-users
    * @param accountId  Unipile account ID for the LinkedIn account being used
-   * @param linkedinId LinkedIn member URN or vanity URL
+   * @param linkedinId LinkedIn public_identifier or provider_id
    */
   async getProfile(accountId: string, linkedinId: string): Promise<UnipileProfile> {
-    return this.request<UnipileProfile>(
+    const params = new URLSearchParams({
+      account_id: accountId,
+      linkedin_sections: '*',
+    });
+
+    const data = await this.request<Record<string, unknown>>(
       'GET',
-      `/api/v1/linkedin/profile/${encodeURIComponent(linkedinId)}?account_id=${encodeURIComponent(accountId)}`,
+      `/api/v1/users/${encodeURIComponent(linkedinId)}?${params.toString()}`,
     );
+
+    const firstName = (data.first_name as string) ?? '';
+    const lastName = (data.last_name as string) ?? '';
+
+    return {
+      id: (data.id as string) ?? linkedinId,
+      providerId: (data.provider_id as string) ?? (data.id as string) ?? linkedinId,
+      firstName,
+      lastName,
+      headline: (data.headline as string) ?? undefined,
+      location: (data.location as string) ?? undefined,
+      industry: (data.industry as string) ?? undefined,
+      summary: (data.summary as string) ?? undefined,
+      profilePictureUrl: (data.profile_picture_url as string) ?? undefined,
+      connectionsCount: (data.connections_count as number) ?? undefined,
+      rawData: data,
+      linkedinId: (data.provider_id as string) ?? (data.id as string) ?? linkedinId,
+      fullName: (data.name as string) ?? `${firstName} ${lastName}`.trim(),
+      linkedinUrl: (data.public_profile_url as string) ?? undefined,
+      publicIdentifier: (data.public_identifier as string) ?? undefined,
+    };
   }
 
   /**
    * Send a connection invitation WITHOUT a note.
+   * Endpoint: POST /api/v1/users/invite
+   * Body: { account_id, provider_id }
+   * Docs: https://developer.unipile.com/docs/invite-users
    * Constraint C9: LinkedIn Free — invitations are sent WITHOUT message.
    * @param accountId  Unipile account ID
-   * @param providerId LinkedIn member URN of the target
+   * @param providerId LinkedIn provider_id (ACoAAA... format) of the target
    */
   async sendInvitation(accountId: string, providerId: string): Promise<InvitationResult> {
     try {
-      const data = await this.request<{ id: string }>(
+      const data = await this.request<{ object: string; account_id?: string }>(
         'POST',
-        '/api/v1/linkedin/invitation',
+        '/api/v1/users/invite',
         {
           account_id: accountId,
           provider_id: providerId,
           // Deliberately omitting `message` — C9: no note on LinkedIn Free
         },
       );
-      return { success: true, invitationId: data.id };
+      return { success: true, invitationId: data.account_id ?? providerId };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
@@ -390,97 +524,145 @@ export class UnipileClient {
 
   /**
    * Send a message to an existing chat.
-   * @param accountId Unipile account ID
+   * Endpoint: POST /api/v1/chats/{chatId}/messages
+   * Body: { text }
+   * Docs: https://developer.unipile.com/docs/send-messages
+   * @param _accountId Unipile account ID (unused — chat already scoped to account)
    * @param chatId    Unipile chat ID
    * @param text      Message body
    */
-  async sendMessage(accountId: string, chatId: string, text: string): Promise<MessageResult> {
+  async sendMessage(_accountId: string, chatId: string, text: string): Promise<MessageResult> {
     try {
-      const data = await this.request<{ id: string }>(
+      const data = await this.request<{ object: string; message_id?: string }>(
         'POST',
-        '/api/v1/linkedin/message',
-        {
-          account_id: accountId,
-          chat_id: chatId,
-          text,
-        },
+        `/api/v1/chats/${encodeURIComponent(chatId)}/messages`,
+        { text },
       );
-      return { success: true, messageId: data.id };
+      return { success: true, messageId: data.message_id };
     } catch (err) {
       return { success: false, error: (err as Error).message };
     }
   }
 
   /**
-   * Get sent/received invitations for an account.
+   * Get sent invitations for an account (pending).
+   * Endpoint: GET /api/v1/users/invitations/sent?account_id={accountId}
+   * Docs: https://developer.unipile.com/reference/userscontroller_listalluserinvitationssent
    * @param accountId Unipile account ID
-   * @param status    'pending' | 'accepted' | 'declined' | 'all'
-   * @param since     ISO timestamp — only return invitations after this time
+   * @param _status   Unused — Unipile returns pending invitations only
+   * @param _since    Unused — filter client-side if needed
    */
   async getInvitations(
     accountId: string,
-    status: 'pending' | 'accepted' | 'declined' | 'all' = 'all',
-    since?: string,
+    _status: 'pending' | 'accepted' | 'declined' | 'all' = 'all',
+    _since?: string,
   ): Promise<UnipileInvitation[]> {
-    const params = new URLSearchParams({ account_id: accountId, status });
-    if (since) params.set('since', since);
+    const params = new URLSearchParams({ account_id: accountId });
 
-    const data = await this.request<{ items: UnipileInvitation[] }>(
+    const data = await this.request<{ items: Array<Record<string, unknown>> }>(
       'GET',
-      `/api/v1/linkedin/invitations?${params.toString()}`,
+      `/api/v1/users/invitations/sent?${params.toString()}`,
     );
-    return data.items ?? [];
+
+    return (data.items ?? []).map((item) => ({
+      id: (item.id as string) ?? '',
+      providerId: (item.provider_id as string) ?? (item.id as string) ?? '',
+      status: (item.status as string) ?? 'pending',
+      sentAt: (item.sent_at as string) ?? (item.created_at as string) ?? '',
+    }));
   }
 
   /**
-   * Get messages received since a given timestamp.
+   * Get messages across all chats.
+   * Endpoint: GET /api/v1/messages?account_id={accountId}
+   * Docs: https://developer.unipile.com/docs/get-messages
    * @param accountId Unipile account ID
-   * @param since     ISO timestamp (optional)
+   * @param since     ISO timestamp (optional) — not natively supported; filter client-side
    */
   async getMessages(accountId: string, since?: string): Promise<UnipileMessage[]> {
     const params = new URLSearchParams({ account_id: accountId });
-    if (since) params.set('since', since);
+    if (since) params.set('after', since);
 
-    const data = await this.request<{ items: UnipileMessage[] }>(
+    const data = await this.request<{ items: Array<Record<string, unknown>> }>(
       'GET',
-      `/api/v1/linkedin/messages?${params.toString()}`,
+      `/api/v1/messages?${params.toString()}`,
     );
-    return data.items ?? [];
+
+    return (data.items ?? []).map((item) => ({
+      id: (item.id as string) ?? '',
+      chatId: (item.chat_id as string) ?? '',
+      senderId: (item.sender_id as string) ?? '',
+      text: (item.text as string) ?? (item.body as string) ?? '',
+      sentAt: (item.timestamp as string) ?? (item.created_at as string) ?? '',
+      isRead: (item.is_read as boolean) ?? false,
+    }));
   }
 
   /**
    * List all first-degree connections (relations) for an account.
+   * Endpoint: GET /api/v1/users/{accountId}/relations
+   * Docs: https://developer.unipile.com/reference/userscontroller_getrelations
    */
   async listRelations(accountId: string): Promise<UnipileRelation[]> {
-    const data = await this.request<{ items: UnipileRelation[] }>(
+    const data = await this.request<{ items: Array<Record<string, unknown>> }>(
       'GET',
-      `/api/v1/linkedin/relations?account_id=${encodeURIComponent(accountId)}`,
+      `/api/v1/users/${encodeURIComponent(accountId)}/relations`,
     );
-    return data.items ?? [];
+
+    return (data.items ?? []).map((item) => ({
+      id: (item.id as string) ?? '',
+      providerId: (item.provider_id as string) ?? (item.id as string) ?? '',
+      firstName: (item.first_name as string) ?? undefined,
+      lastName: (item.last_name as string) ?? undefined,
+      headline: (item.headline as string) ?? undefined,
+      connectedAt: (item.connected_at as string) ?? (item.created_at as string) ?? undefined,
+    }));
   }
 
   /**
    * List all active chats/conversations for an account.
+   * Endpoint: GET /api/v1/chats?account_id={accountId}
+   * Docs: https://developer.unipile.com/reference/chatscontroller_listallchats
    */
   async listChats(accountId: string): Promise<UnipileChat[]> {
-    const data = await this.request<{ items: UnipileChat[] }>(
+    const params = new URLSearchParams({ account_id: accountId });
+
+    const data = await this.request<{ items: Array<Record<string, unknown>> }>(
       'GET',
-      `/api/v1/linkedin/chats?account_id=${encodeURIComponent(accountId)}`,
+      `/api/v1/chats?${params.toString()}`,
     );
-    return data.items ?? [];
+
+    return (data.items ?? []).map((item) => ({
+      id: (item.id as string) ?? '',
+      participantId: (item.attendee_id as string) ?? '',
+      participantProviderId: (item.attendee_provider_id as string) ?? '',
+      lastMessageAt: (item.last_message_at as string) ?? undefined,
+      lastMessagePreview: (item.last_message_preview as string) ?? undefined,
+      unreadCount: (item.unread_count as number) ?? undefined,
+    }));
   }
 
   /**
    * Get messages from a specific chat.
+   * Endpoint: GET /api/v1/chats/{chatId}/messages?limit={limit}
+   * Docs: https://developer.unipile.com/docs/get-messages
    * @param chatId  Unipile chat ID
    * @param limit   Maximum number of messages to return (default 50)
    */
   async getChatMessages(chatId: string, limit = 50): Promise<UnipileMessage[]> {
-    const data = await this.request<{ items: UnipileMessage[] }>(
+    const data = await this.request<{ items: Array<Record<string, unknown>> }>(
       'GET',
-      `/api/v1/linkedin/chats/${encodeURIComponent(chatId)}/messages?limit=${limit}`,
+      `/api/v1/chats/${encodeURIComponent(chatId)}/messages?limit=${limit}`,
     );
-    return data.items ?? [];
+
+    return (data.items ?? []).map((item) => ({
+      id: (item.id as string) ?? '',
+      chatId: (item.chat_id as string) ?? chatId,
+      senderId: (item.sender_id as string) ?? '',
+      text: (item.text as string) ?? (item.body as string) ?? '',
+      sentAt: (item.timestamp as string) ?? (item.created_at as string) ?? '',
+      isRead: (item.is_read as boolean) ?? false,
+    }));
   }
 }
 
@@ -491,12 +673,16 @@ export class UnipileClient {
 function createUnipileClient(): UnipileClient {
   const baseUrl = process.env.UNIPILE_BASE_URL ?? 'https://api.unipile.com';
   const apiKey = process.env.UNIPILE_API_KEY ?? '';
+  const accountId = process.env.UNIPILE_ACCOUNT_ID ?? '';
 
   if (!apiKey) {
     logger.warn('[UnipileClient] UNIPILE_API_KEY is not set — client will fail on first use');
   }
+  if (!accountId) {
+    logger.warn('[UnipileClient] UNIPILE_ACCOUNT_ID is not set — search will fail');
+  }
 
-  return new UnipileClient(baseUrl, apiKey);
+  return new UnipileClient(baseUrl, apiKey, accountId);
 }
 
 export const unipileClient: UnipileClient = createUnipileClient();

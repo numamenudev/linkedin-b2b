@@ -196,23 +196,24 @@ searchStructuresRoutes.post('/:agentId/:id/run', async (req: Request, res: Respo
       return;
     }
 
-    // Update lastExecutedAt for tracking
-    await db.searchStructure.update({
-      where: { id: req.params.id },
-      data: {
-        lastExecutedAt: new Date(),
-        timesExecuted: { increment: 1 },
-      },
-    });
+    // Execute search via the search engine
+    const { executeSearch } = await import('../../automation/search-engine');
+    const agent = await db.agent.findUnique({ where: { id: req.params.agentId } });
+    const linkedinMode = ((agent as Record<string, unknown>)?.linkedinMode as string) ?? 'free';
 
-    // Note: actual search execution is delegated to search-engine.ts
-    // This endpoint returns a placeholder response until the automation engine is wired up
+    const profiles = await executeSearch(req.params.id, linkedinMode as 'free' | 'sales_nav');
+
     res.json({
       success: true,
-      message: 'Search queued for execution',
       structureId: req.params.id,
       queryString: structure.fullQueryString,
-      // found, new, duplicates, anonymous will be populated after real execution
+      found: profiles.length,
+      profiles: profiles.map((p) => ({
+        id: p.id,
+        name: (p as Record<string, unknown>).fullName ?? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
+        headline: p.headline,
+        location: p.location,
+      })),
     });
   } catch (err) {
     next(err);
