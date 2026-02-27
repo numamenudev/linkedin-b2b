@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { Layout } from '@/components/layout/Layout';
 
 const LoginPage = React.lazy(() => import('@/pages/Login'));
 const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
@@ -28,7 +29,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  return <Layout>{children}</Layout>;
 }
 
 export default function App() {
@@ -38,9 +39,13 @@ export default function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected routes */}
+        {/* Protected routes — wrapped in Layout via RequireAuth */}
         <Route
           path="/"
+          element={<Navigate to="/dashboard" replace />}
+        />
+        <Route
+          path="/dashboard"
           element={
             <RequireAuth>
               <DashboardPage />
@@ -115,7 +120,7 @@ export default function App() {
         />
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </React.Suspense>
   );
