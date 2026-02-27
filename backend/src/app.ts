@@ -94,7 +94,7 @@ app.use(
     origin:
       process.env.NODE_ENV === 'production'
         ? false
-        : (process.env.CORS_ORIGIN ?? 'http://localhost:5173'),
+        : (process.env.CORS_ORIGIN ?? process.env.DASHBOARD_URL ?? 'http://localhost:3000'),
     credentials: true, // DC-01: required for HttpOnly cookie auth
   }),
 );

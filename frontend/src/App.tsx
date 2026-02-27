@@ -2,30 +2,15 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
-// Placeholder pages — will be replaced in subsequent groups
-const LoginPage = React.lazy(() =>
-  Promise.resolve({
-    default: () => (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-card">
-          <h1 className="mb-2 text-2xl font-semibold text-gray-900">LinkedIn Platform</h1>
-          <p className="text-sm text-gray-500">Login page — coming in G13</p>
-        </div>
-      </div>
-    ),
-  }),
-);
-
-const DashboardPage = React.lazy(() =>
-  Promise.resolve({
-    default: () => (
-      <div className="p-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500">Dashboard — coming in G14</p>
-      </div>
-    ),
-  }),
-);
+const LoginPage = React.lazy(() => import('@/pages/Login'));
+const DashboardPage = React.lazy(() => import('@/pages/Dashboard'));
+const AgentsListPage = React.lazy(() => import('@/pages/Agents/AgentsList'));
+const AgentDetailPage = React.lazy(() => import('@/pages/Agents/AgentDetail'));
+const AgentCreatePage = React.lazy(() => import('@/pages/Agents/AgentCreate'));
+const ProspectsListPage = React.lazy(() => import('@/pages/Prospects/ProspectsList'));
+const AnalyticsPage = React.lazy(() => import('@/pages/Analytics'));
+const LogsPage = React.lazy(() => import('@/pages/Logs'));
+const SettingsPage = React.lazy(() => import('@/pages/Settings'));
 
 /** Wrapper that redirects unauthenticated users to /login */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -63,22 +48,34 @@ export default function App() {
           }
         />
         <Route
-          path="/agents/*"
+          path="/agents"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Agents — coming soon</h1>
-              </div>
+              <AgentsListPage />
             </RequireAuth>
           }
         />
         <Route
-          path="/prospects/*"
+          path="/agents/new"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Prospects — coming soon</h1>
-              </div>
+              <AgentCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/agents/:id"
+          element={
+            <RequireAuth>
+              <AgentDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/prospects"
+          element={
+            <RequireAuth>
+              <ProspectsListPage />
             </RequireAuth>
           }
         />
@@ -96,9 +93,7 @@ export default function App() {
           path="/analytics"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Analytics — coming soon</h1>
-              </div>
+              <AnalyticsPage />
             </RequireAuth>
           }
         />
@@ -106,9 +101,7 @@ export default function App() {
           path="/logs"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Logs — coming soon</h1>
-              </div>
+              <LogsPage />
             </RequireAuth>
           }
         />
@@ -116,9 +109,7 @@ export default function App() {
           path="/settings"
           element={
             <RequireAuth>
-              <div className="p-8">
-                <h1 className="text-2xl font-semibold">Settings — coming soon</h1>
-              </div>
+              <SettingsPage />
             </RequireAuth>
           }
         />
