@@ -179,11 +179,14 @@ function ResponseRow({ prospect }: { prospect: Prospect }) {
 // ---------------------------------------------------------------------------
 // Dashboard Page (unified: KPI + Agents + Responses)
 // ---------------------------------------------------------------------------
-interface DashboardKpis {
-  sentToday: number;
-  acceptedToday: number;
-  messagesToday: number;
-  repliesToday: number;
+interface AnalyticsOverview {
+  totalProspects: number;
+  totalConnected: number;
+  totalResponded: number;
+  totalConnectionRequestsSent: number;
+  acceptanceRate: number;
+  responseRate: number;
+  activeAgents: number;
 }
 
 type StatusFilter = 'all' | 'active' | 'paused' | 'archived';
@@ -194,9 +197,9 @@ export default function Dashboard() {
 
   const { data: agents = [], isLoading: agentsLoading } = useAgents();
 
-  const { data: kpis } = useQuery<DashboardKpis>({
+  const { data: kpis } = useQuery<AnalyticsOverview>({
     queryKey: ['dashboard', 'kpis'],
-    queryFn: () => api.get<DashboardKpis>('/analytics/kpis?period=today'),
+    queryFn: () => api.get<AnalyticsOverview>('/analytics/overview'),
   });
 
   const { data: responsesResult } = useQuery<PaginatedProspects>({
@@ -238,26 +241,26 @@ export default function Dashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Richieste inviate oggi"
-          value={kpis?.sentToday ?? 0}
+          label="Richieste inviate"
+          value={kpis?.totalConnectionRequestsSent ?? 0}
           icon={<Users className="h-5 w-5 text-indigo-600" />}
           color="bg-indigo-50"
         />
         <KpiCard
           label="Connessioni accettate"
-          value={kpis?.acceptedToday ?? 0}
+          value={kpis?.totalConnected ?? 0}
           icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
           color="bg-green-50"
         />
         <KpiCard
-          label="Messaggi inviati"
-          value={kpis?.messagesToday ?? 0}
+          label="Prospect totali"
+          value={kpis?.totalProspects ?? 0}
           icon={<MessageSquare className="h-5 w-5 text-blue-600" />}
           color="bg-blue-50"
         />
         <KpiCard
           label="Risposte ricevute"
-          value={kpis?.repliesToday ?? 0}
+          value={kpis?.totalResponded ?? 0}
           icon={<Reply className="h-5 w-5 text-purple-600" />}
           color="bg-purple-50"
         />
