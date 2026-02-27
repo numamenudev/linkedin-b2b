@@ -46,7 +46,7 @@ settingsRoutes.get('/', async (_req: Request, res: Response, next: NextFunction)
     const maskedConfig = {
       ...settings,
       unipileApiKey: maskApiKey(process.env.UNIPILE_API_KEY),
-      claudeApiKey: maskApiKey(process.env.CLAUDE_API_KEY),
+      openaiApiKey: maskApiKey(process.env.OPENAI_API_KEY),
       telegramBotToken: maskApiKey(process.env.TELEGRAM_BOT_TOKEN),
       resendApiKey: maskApiKey(process.env.RESEND_API_KEY),
     };
@@ -125,14 +125,14 @@ settingsRoutes.post('/test-unipile', async (_req: Request, res: Response, next: 
 });
 
 // -----------------------------------------------
-// POST /api/settings/test-claude — test Claude API
+// POST /api/settings/test-claude — test OpenAI API
 // -----------------------------------------------
 settingsRoutes.post('/test-claude', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const apiKey = process.env.CLAUDE_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
-      res.status(400).json({ success: false, error: 'CLAUDE_API_KEY not configured' });
+      res.status(400).json({ success: false, error: 'OPENAI_API_KEY not configured' });
       return;
     }
 
@@ -140,17 +140,17 @@ settingsRoutes.post('/test-claude', async (_req: Request, res: Response, next: N
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
+          'Authorization': `Bearer ${apiKey}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 10,
-          messages: [{ role: 'user', content: 'Reply with "ok"' }],
+          model: 'gpt-4.1-mini',
+          max_output_tokens: 10,
+          instructions: 'Reply with ok',
+          input: 'ping',
         }),
         signal: controller.signal,
       });
@@ -158,10 +158,10 @@ settingsRoutes.post('/test-claude', async (_req: Request, res: Response, next: N
 
       if (response.ok) {
         const data = await response.json();
-        res.json({ success: true, model: data.model || 'claude-3-5-sonnet-20241022' });
+        res.json({ success: true, model: data.model || 'gpt-4.1-mini' });
       } else {
         const body = await response.text();
-        res.json({ success: false, error: `Claude API returned ${response.status}: ${body}` });
+        res.json({ success: false, error: `OpenAI API returned ${response.status}: ${body}` });
       }
     } catch (fetchErr: unknown) {
       clearTimeout(timeout);

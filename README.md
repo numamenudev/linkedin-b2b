@@ -42,7 +42,7 @@ linkedin-b2b/
 - PostgreSQL >= 15
 - Redis >= 7
 - A [Unipile](https://unipile.com) account with a LinkedIn account connected
-- An [Anthropic](https://anthropic.com) API key
+- An [OpenAI](https://platform.openai.com) API key
 
 ### 1. Clone and install
 
@@ -105,7 +105,7 @@ All variables live in `backend/.env`. See `backend/.env.example` for the full li
 | `UNIPILE_API_KEY` | yes | Unipile REST API key |
 | `UNIPILE_ACCOUNT_ID` | yes | Unipile LinkedIn account ID |
 | `UNIPILE_WEBHOOK_SECRET` | yes | HMAC secret for webhook verification |
-| `CLAUDE_API_KEY` | yes | Anthropic Claude API key |
+| `OPENAI_API_KEY` | yes | OpenAI API key |
 | `TELEGRAM_BOT_TOKEN` | no | Telegram bot token for daily reports |
 | `TELEGRAM_CHAT_ID` | no | Telegram chat/group ID for reports |
 | `ADMIN_EMAIL` | yes | Admin account email (used by seed) |

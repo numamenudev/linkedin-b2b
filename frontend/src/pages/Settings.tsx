@@ -27,7 +27,7 @@ type ServiceStatus = 'ok' | 'error' | 'unconfigured' | 'unknown';
 
 interface ApiStatus {
   unipile:  ServiceStatus;
-  claude:   ServiceStatus;
+  openai:   ServiceStatus;
   telegram: ServiceStatus;
   resend:   ServiceStatus;
 }
@@ -108,7 +108,7 @@ function ApiConnectionsTab() {
 
   const services = [
     { key: 'unipile',  label: 'Unipile API',  description: 'Gateway per le operazioni LinkedIn' },
-    { key: 'claude',   label: 'Claude API',    description: 'Analisi profili e generazione messaggi' },
+    { key: 'openai',   label: 'OpenAI API',    description: 'Analisi profili e generazione messaggi' },
     { key: 'telegram', label: 'Telegram Bot',  description: 'Notifiche e alert in tempo reale' },
     { key: 'resend',   label: 'Resend',        description: 'Email report e notifiche' },
   ];
