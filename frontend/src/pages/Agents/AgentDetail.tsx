@@ -353,43 +353,67 @@ function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit }: {
 // ---------------------------------------------------------------------------
 interface LogEntry {
   id: string;
+  agentId?: string;
   level: string;
+  job?: string;
+  action: string;
   message: string;
+  meta?: Record<string, unknown>;
   createdAt: string;
+}
+
+interface LogsResponse {
+  data: LogEntry[];
+  pagination: { limit: number; offset: number; total: number };
 }
 
 function LogsTab({ agentId }: { agentId: string }) {
   const [level, setLevel] = useState('');
 
-  const { data: logs = [], isLoading } = useQuery<LogEntry[]>({
+  const { data, isLoading, isError } = useQuery<LogsResponse>({
     queryKey: ['logs', { agentId, level }],
     queryFn: () => {
       const qs = new URLSearchParams({ agentId, ...(level ? { level } : {}), limit: '100' }).toString();
-      return api.get<LogEntry[]>(`/logs?${qs}`);
+      return api.get<LogsResponse>(`/logs?${qs}`);
     },
     refetchInterval: 10_000,
   });
+
+  const logs = data?.data ?? [];
 
   const levelColors: Record<string, string> = {
     info:  'text-blue-400',
     warn:  'text-yellow-400',
     error: 'text-red-400',
+    debug: 'text-gray-500',
   };
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-3">
-        <select
-          value={level}
-          onChange={e => setLevel(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Tutti i livelli</option>
-          <option value="info">Info</option>
-          <option value="warn">Warning</option>
-          <option value="error">Error</option>
-        </select>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-3">
+          <select
+            value={level}
+            onChange={e => setLevel(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Tutti i livelli</option>
+            <option value="info">Info</option>
+            <option value="warn">Warning</option>
+            <option value="error">Error</option>
+            <option value="debug">Debug</option>
+          </select>
+        </div>
+        {data?.pagination && (
+          <span className="text-xs text-gray-400">{data.pagination.total} log totali</span>
+        )}
       </div>
+
+      {isError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          Errore nel caricamento dei log.
+        </div>
+      )}
 
       <div className="bg-gray-900 rounded-xl p-4 h-96 overflow-y-auto font-mono text-xs space-y-1">
         {isLoading && <p className="text-gray-400">Caricamento log...</p>}
@@ -399,9 +423,12 @@ function LogsTab({ agentId }: { agentId: string }) {
         {logs.map(log => (
           <div key={log.id} className="flex gap-3">
             <span className="text-gray-500 flex-shrink-0">{formatDate(log.createdAt)}</span>
-            <span className={`${levelColors[log.level] ?? 'text-gray-300'} flex-shrink-0 uppercase`}>
+            <span className={`${levelColors[log.level] ?? 'text-gray-300'} flex-shrink-0 uppercase w-12`}>
               [{log.level}]
             </span>
+            {log.job && (
+              <span className="text-indigo-400 flex-shrink-0">[{log.job}]</span>
+            )}
             <span className="text-gray-300">{log.message}</span>
           </div>
         ))}
