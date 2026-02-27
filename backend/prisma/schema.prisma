@@ -1,0 +1,300 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------
+// AUTHENTICATION
+// -----------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+// -----------------------------------------------
+// IDENTITY
+// -----------------------------------------------
+
+model Identity {
+  id               String     @id @default(uuid())
+  name             String
+  parentId         String?
+  parent           Identity?  @relation("IdentityInheritance", fields: [parentId], references: [id])
+  children         Identity[] @relation("IdentityInheritance")
+
+  personaName      String
+  role             String
+  company          String
+  location         String?
+
+  fullContextPrompt String   @db.Text
+  toneProfile       Json
+  companyContext    Json
+  credibilityMarkers Json
+  doNotSay          Json
+
+  version          Int      @default(1)
+  approvedByUser   Boolean  @default(false)
+  approvedAt       DateTime?
+
+  documents        IdentityDocument[]
+  agents           Agent[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("identities")
+}
+
+model IdentityDocument {
+  id               String   @id @default(uuid())
+  identityId       String
+  identity         Identity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  filename         String
+  originalName     String
+  fileType         String
+  filePath         String
+
+  extractionStatus  String  @default("pending")
+  extractedText     String? @db.Text
+  extractedFacts    Json?
+  extractionSummary String? @db.Text
+
+  createdAt        DateTime @default(now())
+
+  @@map("identity_documents")
+}
+
+// -----------------------------------------------
+// AGENTS
+// -----------------------------------------------
+
+model Agent {
+  id               String   @id @default(uuid())
+  name             String
+  description      String?
+  status           String   @default("paused")
+
+  identityId       String
+  identity         Identity @relation(fields: [identityId], references: [id])
+
+  targetConfig     Json
+  messagingConfig  Json
+
+  weeklyConnectionRequests Int @default(60)
+  dailyConnectionRequests  Int @default(9)
+  dailyMessages    Int      @default(8)
+  priority         Int      @default(2)
+
+  linkedinMode     String   @default("free")
+
+  statsJson        Json     @default("{}")
+
+  searchStructures SearchStructure[]
+  prospects        Prospect[]
+  dailyLogs        DailyLog[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("agents")
+}
+
+// -----------------------------------------------
+// SEARCH STRUCTURES
+// -----------------------------------------------
+
+model SearchStructure {
+  id               String   @id @default(uuid())
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  name             String
+  queryConfig      Json
+  fullQueryString  String
+  linkedinMode     String   @default("free")
+
+  enabled          Boolean  @default(true)
+  lastExecutedAt   DateTime?
+  timesExecuted    Int      @default(0)
+  totalResultsFound Int     @default(0)
+  newResultsLastRun Int     @default(0)
+
+  createdAt        DateTime @default(now())
+
+  @@map("search_structures")
+}
+
+// -----------------------------------------------
+// PROSPECTS
+// -----------------------------------------------
+
+model Prospect {
+  id               String   @id @default(uuid())
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id])
+
+  linkedinId       String
+  linkedinUrl      String
+  fullName         String
+  firstName        String
+  lastName         String
+  headline         String?
+  location         String?
+  profilePictureUrl String?
+  rawProfileData   Json?
+
+  restaurantName   String?
+  restaurantType   String?
+  estimatedSize    String?
+  companyName      String?
+
+  score            Int      @default(0)
+  scoreBreakdown   Json?
+
+  status           String   @default("found")
+
+  discoveredAt              DateTime  @default(now())
+  connectionRequestSentAt   DateTime?
+  connectionAcceptedAt      DateTime?
+  connectionRejectedAt      DateTime?
+  lastActivityAt            DateTime?
+
+  searchStructureId String?
+  discoveryMethod   String  @default("search")
+
+  hasPriorConversation     Boolean  @default(false)
+  priorConversationSummary String?  @db.Text
+  lastConversationDate     DateTime?
+  existingChatId           String?
+
+  profileAnalysis   Json?
+  profileAnalyzedAt DateTime?
+
+  notes            String?
+
+  messages         Message[]
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // DC-04: @@unique([linkedinId]) enforces global uniqueness across all agents.
+  // Application logic in deduplication.ts also checks before saving.
+  // AR fix: @@unique([linkedinId]) not @@unique([linkedinId, agentId])
+  @@unique([linkedinId])
+
+  // DC-11: Performance indexes for critical query patterns
+  @@index([agentId, status])          // Prospect list filtering, afternoon job
+  @@index([agentId, status, score])   // Afternoon job ordering (connection requests by score DESC)
+  @@index([status, lastActivityAt])   // Follow-up manager checks
+  @@index([linkedinId])               // Cross-agent deduplication lookups (covered by @@unique but explicit)
+
+  @@map("prospects")
+}
+
+model Message {
+  id               String   @id @default(uuid())
+  prospectId       String
+  prospect         Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  sequenceNumber   Int
+  direction        String   @default("outbound")
+  content          String   @db.Text
+  unipileMessageId String?
+
+  sentAt           DateTime?
+  status           String   @default("pending")
+
+  responded        Boolean  @default(false)
+  responseReceivedAt DateTime?
+  responseContent  String?  @db.Text
+
+  createdAt        DateTime @default(now())
+
+  // DC-11: Index for message timeline queries
+  @@index([prospectId, createdAt])
+
+  @@map("messages")
+}
+
+// -----------------------------------------------
+// LOGGING & ANALYTICS
+// -----------------------------------------------
+
+model DailyLog {
+  id               String   @id @default(uuid())
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id])
+
+  date             DateTime @db.Date
+
+  searchStructuresRun     Int @default(0)
+  newProspectsFound       Int @default(0)
+  connectionRequestsSent  Int @default(0)
+  connectionsAccepted     Int @default(0)
+  connectionsRejected     Int @default(0)
+  profilesAnalyzed        Int @default(0)
+  messagesSent            Int @default(0)
+  responsesReceived       Int @default(0)
+
+  errors           Json     @default("[]")
+  rawLog           String?  @db.Text
+
+  createdAt        DateTime @default(now())
+
+  @@unique([agentId, date])
+  @@map("daily_logs")
+}
+
+model OperationLog {
+  id               String   @id @default(uuid())
+  agentId          String?
+  level            String
+  job              String?
+  action           String
+  message          String
+  meta             Json?
+  createdAt        DateTime @default(now())
+
+  // DC-11: Indexes for log queries
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+
+  @@map("operation_logs")
+}
+
+// -----------------------------------------------
+// SETTINGS (singleton row)
+// -----------------------------------------------
+
+model Settings {
+  id               String   @id @default("singleton")
+  reportEmail      String   @default("daniel.dallapalma@gmail.com")
+  reportEmailTime  String   @default("19:00")
+  linkedinMode     String   @default("free")
+  timezone         String   @default("Europe/Rome")
+  morningJobTime   String   @default("09:00")
+  middayJobTime    String   @default("11:30")
+  afternoonJobTime String   @default("14:00")
+  eveningJobTime   String   @default("18:30")
+  globalWeeklyConnectionLimit Int @default(150)
+  globalDailyConnectionLimit  Int @default(21)
+  globalDailyMessageLimit     Int @default(25)
+  updatedAt        DateTime @updatedAt
+
+  @@map("settings")
+}
