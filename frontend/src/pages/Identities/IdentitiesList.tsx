@@ -76,8 +76,11 @@ export default function IdentitiesPage() {
               key={identity.id}
               className="bg-white rounded-xl border border-gray-100 p-5 flex items-start justify-between gap-4"
             >
-              {/* Info */}
-              <div className="flex-1 min-w-0">
+              {/* Info — clickable area */}
+              <Link
+                to={`/identities/${identity.id}`}
+                className="flex-1 min-w-0 rounded-lg hover:bg-gray-50 transition-colors -m-1 p-1"
+              >
                 <div className="flex items-center gap-3">
                   <h3 className="text-base font-semibold text-gray-900">{identity.name}</h3>
                   {identity.approvedByUser ? (
@@ -117,7 +120,7 @@ export default function IdentitiesPage() {
                     <span>Approvata {formatDate(identity.approvedAt)}</span>
                   )}
                 </div>
-              </div>
+              </Link>
 
               {/* Actions */}
               <div className="flex gap-2 flex-shrink-0">

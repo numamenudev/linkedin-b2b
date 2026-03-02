@@ -13,6 +13,7 @@ const AnalyticsPage = React.lazy(() => import('@/pages/Analytics'));
 const LogsPage = React.lazy(() => import('@/pages/Logs'));
 const IdentitiesPage = React.lazy(() => import('@/pages/Identities/IdentitiesList'));
 const IdentityCreatePage = React.lazy(() => import('@/pages/Identities/IdentityCreate'));
+const IdentityDetailPage = React.lazy(() => import('@/pages/Identities/IdentityDetail'));
 const SettingsPage = React.lazy(() => import('@/pages/Settings'));
 
 /** Wrapper that redirects unauthenticated users to /login */
@@ -99,6 +100,14 @@ export default function App() {
           element={
             <RequireAuth>
               <IdentityCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/identities/:id"
+          element={
+            <RequireAuth>
+              <IdentityDetailPage />
             </RequireAuth>
           }
         />
