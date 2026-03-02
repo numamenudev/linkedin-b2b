@@ -33,10 +33,14 @@ export interface Agent {
   identityId: string;
   identityName?: string;
   targetDescription?: string;
+  description?: string;
   dailyLimit: number;
   messageTemplate?: string;
+  targetConfig?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  _count?: { prospects: number };
+  identity?: { name: string };
 }
 
 export interface AgentStats {

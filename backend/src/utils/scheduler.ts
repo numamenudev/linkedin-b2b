@@ -111,10 +111,12 @@ export function scheduleJobWithRandomization(
   baseMinute: number,
   handler: () => Promise<void>,
   lockTtlSeconds = 7_200,
+  dayOfWeek?: number,
 ): void {
   // Fire the outer cron 15 minutes BEFORE the earliest possible time
   const earliestMinute = Math.max(0, baseMinute - 15);
-  const cronExpr = `${earliestMinute} ${baseHour} * * *`;
+  const dow = dayOfWeek !== undefined ? String(dayOfWeek) : '*';
+  const cronExpr = `${earliestMinute} ${baseHour} * * ${dow}`;
 
   scheduleJob(
     name,
@@ -138,18 +140,21 @@ export function scheduleJobWithRandomization(
 // ---------------------------------------------------------------------------
 
 /**
- * Schedule one of the four daily automation jobs using the time stored in
- * the Settings table.  Re-reads from DB every time the schedule fires so
- * changes propagate without restart.
+ * Schedule one of the automation jobs using the time stored in the Settings
+ * table.  Re-reads from DB every time the schedule fires so changes
+ * propagate without restart.
  *
- * @param jobName    One of 'morning' | 'midday' | 'afternoon' | 'evening'
- * @param handler    The job function.
- * @param lockTtl    Redis lock TTL for the job.
+ * @param jobName     One of the named automation jobs.
+ * @param handler     The job function.
+ * @param lockTtl     Redis lock TTL for the job.
+ * @param dayOfWeek   Optional day-of-week restriction (0=Sun, 1=Mon, …).
+ *                    When omitted the job fires every day.
  */
 export async function scheduleDailyJob(
-  jobName: 'morning' | 'midday' | 'afternoon' | 'evening',
+  jobName: 'morning' | 'midday' | 'afternoon' | 'evening' | 'sunday',
   handler: () => Promise<void>,
   lockTtl = 7_200,
+  dayOfWeek?: number,
 ): Promise<void> {
   // Read base time from Settings.  Default to a sensible time if DB is not yet
   // available (e.g. during cold start before migrations).
@@ -158,6 +163,7 @@ export async function scheduleDailyJob(
     midday: '11:30',
     afternoon: '14:00',
     evening: '18:30',
+    sunday: '08:00',
   };
 
   let baseTimeStr = defaults[jobName];
@@ -172,6 +178,7 @@ export async function scheduleDailyJob(
         midday: 'middayJobTime',
         afternoon: 'afternoonJobTime',
         evening: 'eveningJobTime',
+        sunday: 'sundayJobTime',
       };
       const fieldValue = settings[fieldMap[jobName]];
       if (typeof fieldValue === 'string') {
@@ -190,7 +197,7 @@ export async function scheduleDailyJob(
   const baseHour = parseInt(hourStr, 10);
   const baseMinute = parseInt(minuteStr, 10);
 
-  scheduleJobWithRandomization(jobName, baseHour, baseMinute, handler, lockTtl);
+  scheduleJobWithRandomization(jobName, baseHour, baseMinute, handler, lockTtl, dayOfWeek);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,59 +229,6 @@ export function stopAll(): void {
     logger.info('Scheduler: stopped job', { name });
   }
   registry.clear();
-}
-
-// ---------------------------------------------------------------------------
-// scheduleSundayJob — Sunday network analysis with DB-persisted time
-// ---------------------------------------------------------------------------
-
-/**
- * Schedule the Sunday network analysis job using the time stored in the
- * Settings table (sundayJobTime).  Fires only on Sundays, with ±15min
- * randomization like the daily jobs.
- */
-async function scheduleSundayJob(
-  handler: () => Promise<void>,
-  lockTtl = 7_200,
-): Promise<void> {
-  let baseTimeStr = '08:00';
-
-  try {
-    const { getDb } = await import('../db/prisma.client');
-    const prisma = getDb();
-    const settings = await prisma.settings.findUnique({ where: { id: 'singleton' } });
-    if (settings && typeof settings.sundayJobTime === 'string') {
-      baseTimeStr = settings.sundayJobTime;
-    }
-  } catch (err) {
-    logger.warn('Scheduler: could not read sundayJobTime from DB, using default', {
-      default: baseTimeStr,
-      error: (err as Error).message,
-    });
-  }
-
-  const [hourStr, minuteStr] = baseTimeStr.split(':');
-  const baseHour = parseInt(hourStr, 10);
-  const baseMinute = parseInt(minuteStr, 10);
-
-  // Fire 15 minutes before base time, on Sundays only (day-of-week 0)
-  const earliestMinute = Math.max(0, baseMinute - 15);
-  const cronExpr = `${earliestMinute} ${baseHour} * * 0`;
-
-  scheduleJob(
-    'sunday',
-    cronExpr,
-    async () => {
-      // Compute a random offset [0, 30] minutes to land in [base-15, base+15]
-      const randomOffsetMs = Math.floor(Math.random() * 30 * 60 * 1_000);
-      logger.info('Scheduler: randomized delay before sunday job', {
-        delayMs: randomOffsetMs,
-      });
-      await sleep(randomOffsetMs);
-      await handler();
-    },
-    lockTtl,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -311,8 +265,8 @@ export async function initScheduler(): Promise<void> {
   await scheduleDailyJob('afternoon', afternoonJob, 5 * 3600);  // DC-08: TTL 5h
   await scheduleDailyJob('evening', eveningJob, 2 * 3600);
 
-  // Sunday network analysis job — times read from DB, ±15min randomized
-  await scheduleSundayJob(sundayJob);
+  // Sunday network analysis job — times read from DB, ±15min randomized, Sundays only
+  await scheduleDailyJob('sunday', sundayJob, 7_200, 0);
 
   // DC-16: Acceptance polling fallback every 4 hours
   scheduleJob(

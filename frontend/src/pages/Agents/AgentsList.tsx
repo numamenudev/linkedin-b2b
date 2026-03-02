@@ -31,7 +31,7 @@ function AgentListCard({ agent }: { agent: Agent }) {
   const canToggle = agent.status === 'active' || agent.status === 'paused';
 
   // The list endpoint returns _count.prospects
-  const prospectCount = (agent as any)._count?.prospects ?? 0;
+  const prospectCount = agent._count?.prospects ?? 0;
 
   return (
     <div
@@ -45,8 +45,8 @@ function AgentListCard({ agent }: { agent: Agent }) {
           {agent.identityName && (
             <p className="text-xs text-gray-500 mt-0.5 truncate">{agent.identityName}</p>
           )}
-          {!agent.identityName && (agent as any).identity?.name && (
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{(agent as any).identity.name}</p>
+          {!agent.identityName && agent.identity?.name && (
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{agent.identity.name}</p>
           )}
         </div>
         <AgentStatusBadge status={agent.status} className="shrink-0" />

@@ -18,6 +18,7 @@
 
 import { acquireLock, releaseLock } from '../../utils/job-lock';
 import { logger } from '../../utils/logger';
+import { randomDelay, todayISO } from '../../utils/helpers';
 import { getActiveAgents } from '../../agents/orchestrator';
 import { filterProfiles, scoreProspect } from '../deduplication';
 import { unipileClient } from '../../integrations/unipile/unipile.client';
@@ -36,10 +37,6 @@ const SUNDAY_LOCK_TTL = 2 * 60 * 60;
 /** Maximum new profiles to fetch full details for per cycle */
 const MAX_PROFILES_PER_CYCLE = 20;
 
-/** Delay between profile fetches (ms) — random between 10-30 seconds for human-like behaviour */
-function randomDelay(): number {
-  return (10 + Math.random() * 20) * 1000;
-}
 
 // ---------------------------------------------------------------------------
 // Sunday Job
@@ -110,6 +107,10 @@ export async function runSundayJob(): Promise<void> {
     const chats = await unipileClient.listChats(accountId);
     const chatByProviderId = new Map(chats.map((c) => [c.participantProviderId, c]));
 
+    // Pre-compute the 30-day cutoff once outside the loop
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     for (const profileRef of toFetch) {
       try {
         const linkedinId = profileRef.linkedinId;
@@ -144,17 +145,10 @@ export async function runSundayJob(): Promise<void> {
 
           // Assign to agent with highest score (>= 50); ties broken by priority
           if (score.total >= 50) {
-            const scoreDiff = score.total - bestScore;
-            if (
-              scoreDiff > 10 ||
-              (scoreDiff > -10 && scoreDiff >= 0) ||
-              (Math.abs(scoreDiff) < 10 && agent.priority < bestPriority)
-            ) {
-              if (score.total > bestScore || (score.total === bestScore && agent.priority < bestPriority)) {
-                bestAgentId = agent.id;
-                bestScore = score.total;
-                bestPriority = agent.priority;
-              }
+            if (score.total > bestScore || (score.total === bestScore && agent.priority < bestPriority)) {
+              bestAgentId = agent.id;
+              bestScore = score.total;
+              bestPriority = agent.priority;
             }
           }
         }
@@ -162,9 +156,6 @@ export async function runSundayJob(): Promise<void> {
         // Skip profiles that don't score >= 50 for any agent
         if (!bestAgentId) {
           logger.debug('[sunday-job] Profile did not meet threshold for any agent', { linkedinId });
-          // Add delay between fetches
-          const delay = randomDelay();
-          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -179,8 +170,6 @@ export async function runSundayJob(): Promise<void> {
         if (chat) {
           existingChatId = chat.id;
           const messages = await unipileClient.getChatMessages(chat.id, 10);
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
           if (messages.length > 0) {
             // Check if there are recent messages (last 30 days)
@@ -220,8 +209,6 @@ export async function runSundayJob(): Promise<void> {
             linkedinId,
             status,
           });
-          const delay = randomDelay();
-          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -258,8 +245,7 @@ export async function runSundayJob(): Promise<void> {
         });
 
         // Random delay between fetches for human-like behaviour
-        const delay = randomDelay();
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await randomDelay();
       } catch (err) {
         logger.error('[sunday-job] Error processing relation', {
           linkedinId: profileRef.linkedinId,
@@ -316,6 +302,7 @@ async function sendSundayTelegramReport(
       weekMessaged,
       weekResponded,
       weekRejected,
+      topAgentResult,
     ] = await Promise.all([
       db.prospect.count({
         where: { discoveredAt: { gte: weekAgo } },
@@ -359,25 +346,19 @@ async function sendSundayTelegramReport(
       db.prospect.count({
         where: { connectionRejectedAt: { gte: weekAgo } },
       }),
+      // Top performing agent — single query with orderBy instead of groupBy + N+1
+      db.agent.findFirst({
+        where: {
+          prospects: {
+            some: { status: 'responded', lastActivityAt: { gte: weekAgo } },
+          },
+        },
+        select: { name: true },
+        orderBy: { prospects: { _count: 'desc' } },
+      }),
     ]);
 
-    // Determine top performing agent
-    const agentStats = await db.prospect.groupBy({
-      by: ['agentId'],
-      _count: { id: true },
-      where: { status: 'responded', lastActivityAt: { gte: weekAgo } },
-      orderBy: { _count: { id: 'desc' } },
-      take: 1,
-    });
-
-    let topPerformingAgent: string | undefined;
-    if (agentStats.length > 0) {
-      const topAgent = await db.agent.findUnique({
-        where: { id: agentStats[0].agentId },
-        select: { name: true },
-      });
-      topPerformingAgent = topAgent?.name;
-    }
+    const topPerformingAgent = topAgentResult?.name;
 
     const weeklyAcceptanceRate = weekSent > 0
       ? Math.round((weekAccepted / weekSent) * 100)
@@ -401,7 +382,7 @@ async function sendSundayTelegramReport(
     }
 
     const data: NetworkAnalysisData = {
-      date: new Date().toISOString().split('T')[0],
+      date: todayISO(),
       totalConnections,
       newConnectionsThisWeek,
       activeConversations,

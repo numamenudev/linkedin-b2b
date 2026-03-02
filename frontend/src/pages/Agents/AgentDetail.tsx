@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { ArrowLeft, Play, Pause, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useAgent } from '@/hooks/useAgents';
+import { useAgent, type Agent } from '@/hooks/useAgents';
 import { useProspects } from '@/hooks/useProspects';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
@@ -292,22 +292,16 @@ interface TargetConfigForm {
   keywords: string;
 }
 
-function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit, agentTargetConfig }: {
-  agentId: string;
-  agentName: string;
-  agentDescription?: string;
-  agentDailyLimit?: number;
-  agentTargetConfig?: Record<string, unknown>;
-}) {
+function ConfigTab({ agent }: { agent: Agent }) {
   const queryClient = useQueryClient();
 
-  const tc = agentTargetConfig ?? {};
+  const tc = agent.targetConfig ?? {};
   const toStr = (val: unknown) => Array.isArray(val) ? (val as string[]).join(', ') : '';
 
   const [form, setForm] = useState({
-    name: agentName,
-    description: agentDescription ?? '',
-    dailyLimit: agentDailyLimit ?? 9,
+    name: agent.name,
+    description: agent.description ?? '',
+    dailyLimit: agent.dailyLimit ?? 9,
   });
 
   const [targeting, setTargeting] = useState<TargetConfigForm>({
@@ -321,7 +315,7 @@ function ConfigTab({ agentId, agentName, agentDescription, agentDailyLimit, agen
   const fromStr = (s: string) => s.split(',').map(v => v.trim()).filter(Boolean);
 
   const updateMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => api.put(`/agents/${agentId}`, data),
+    mutationFn: (data: Record<string, unknown>) => api.put(`/agents/${agent.id}`, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
@@ -663,13 +657,7 @@ export default function AgentDetail() {
         {activeTab === 'prospects' && <ProspectsTab agentId={id!} />}
         {activeTab === 'searches'  && <SearchesTab agentId={id!} />}
         {activeTab === 'config'    && (
-          <ConfigTab
-            agentId={id!}
-            agentName={agent.name}
-            agentDescription={(agent as any).description}
-            agentDailyLimit={agent.dailyLimit}
-            agentTargetConfig={(agent as any).targetConfig}
-          />
+          <ConfigTab agent={agent} />
         )}
         {activeTab === 'logs'      && <LogsTab agentId={id!} />}
       </div>
