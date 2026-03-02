@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
 import { db } from '../../db/prisma.client';
+import { buildIdentityFromQuestions } from '../../identity/identity-builder';
 
 export const identitiesRoutes = Router();
 
@@ -188,6 +189,37 @@ identitiesRoutes.post(
       // is handled asynchronously by the identity-builder pipeline.
 
       res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// -----------------------------------------------
+// POST /api/identities/from-questions — create from guided questions
+// -----------------------------------------------
+identitiesRoutes.post(
+  '/from-questions',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const bodySchema = z.object({
+        answers: z.record(z.string(), z.string()),
+      });
+
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Validation failed', details: parsed.error.flatten() });
+        return;
+      }
+
+      const result = await buildIdentityFromQuestions(parsed.data.answers);
+
+      const identity = await db.identity.findUnique({
+        where: { id: result.identityId },
+        include: { documents: true },
+      });
+
+      res.status(201).json(identity);
     } catch (err) {
       next(err);
     }

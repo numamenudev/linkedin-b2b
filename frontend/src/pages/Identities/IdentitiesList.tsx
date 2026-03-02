@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, ShieldX, RefreshCw, Users, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ShieldCheck, ShieldX, RefreshCw, Users, FileText, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
@@ -42,11 +43,20 @@ export default function IdentitiesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Identità</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Gestisci le identità usate dagli agenti. Un'identità deve essere approvata prima di poter attivare l'agente associato.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Identità</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Gestisci le identità usate dagli agenti. Un'identità deve essere approvata prima di poter attivare l'agente associato.
+          </p>
+        </div>
+        <Link
+          to="/identities/new"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Nuova identità
+        </Link>
       </div>
 
       {isLoading ? (

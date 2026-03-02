@@ -202,14 +202,15 @@ async function handleNewRelation(event: UnipileWebhookPayload): Promise<void> {
     await db.prospect.update({
       where: { id: prospect.id },
       data: {
-        status: 'accepted',
-        acceptedAt: new Date(),
+        status: 'ready_for_outreach',
+        connectionAcceptedAt: new Date(),
+        lastActivityAt: new Date(),
         updatedAt: new Date(),
       },
     });
 
     logger.info(
-      `[UnipileWebhook] Prospect ${prospect.id} (${providerId}) transitioned -> accepted`,
+      `[UnipileWebhook] Prospect ${prospect.id} (${providerId}) transitioned -> ready_for_outreach`,
       { agentId: prospect.agentId },
     );
   } catch (err) {
@@ -260,15 +261,32 @@ async function handleMessageReceived(event: UnipileWebhookPayload): Promise<void
       },
     });
 
+    // Update existingChatId on prospect so future outbound messages can use it
+    if (chatId) {
+      await db.prospect.update({
+        where: { id: prospect.id },
+        data: { existingChatId: chatId },
+      });
+    }
+
+    // Determine next sequence number for this prospect
+    const lastMsg = await db.message.findFirst({
+      where: { prospectId: prospect.id },
+      orderBy: { sequenceNumber: 'desc' },
+      select: { sequenceNumber: true },
+    });
+    const nextSeq = (lastMsg?.sequenceNumber ?? 0) + 1;
+
     // Persist the inbound message
     await db.message.create({
       data: {
         prospectId: prospect.id,
+        sequenceNumber: nextSeq,
         direction: 'inbound',
-        text: messageText,
-        chatId: chatId ?? undefined,
+        content: messageText,
+        unipileMessageId: event.message_id ?? undefined,
         sentAt: new Date(),
-        createdAt: new Date(),
+        status: 'delivered',
       },
     });
 
